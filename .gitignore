@@ -1,0 +1,8 @@
+*.chr
+*.dbg
+*.lbl
+*.lst
+*.map
+*.nes
+*.o
+*.pyc
