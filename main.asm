@@ -16,32 +16,34 @@ DMC_FREQ :=     $4010
 JOYPAD1 :=      $4016
 JOY2_APUFC :=   $4017
 
-REGISTER :=     $40f0
+FIFO_DATA :=    $40f0
+FIFO_STATUS :=  $40f1
 
 sendMessage:
-        lda     #$2b
-        sta     REGISTER
+        lda     #$2b        ; "+"
+        sta     FIFO_DATA
         eor     #$ff
-        sta     REGISTER
-        lda     #$22
-        sta     REGISTER
+        sta     FIFO_DATA
+        lda     #$22        ; CMD_USB_WR
+        sta     FIFO_DATA
         eor     #$ff
-        sta     REGISTER
-        lda     #$05
-        sta     REGISTER
+        sta     FIFO_DATA
+        lda     #$05        ; Length.  16 bit LE
+        sta     FIFO_DATA
         lda     #$00
-        sta     REGISTER
+        sta     FIFO_DATA
         lda     frameCounter
-        sta     REGISTER
+        sta     FIFO_DATA
         lda     frameCounter
-        sta     REGISTER
+        sta     FIFO_DATA
         lda     frameCounter
-        sta     REGISTER
+        sta     FIFO_DATA
         lda     frameCounter
-        sta     REGISTER
+        sta     FIFO_DATA
         lda     frameCounter
-        sta     REGISTER
-        inc     messageSent
+        sta     FIFO_DATA
+        lda     #$00
+        sta     sendMessageFlag
         rts
 
 
@@ -76,14 +78,14 @@ readjoy:
 
 
 receiveMessage:
-        sta     dataContent
-        lda     $40F1
-        cmp     #$40
+        lda     FIFO_STATUS
+        cmp     #$40 ; Mesen/FCEUX unknown register
         beq     @ret
-        cmp     #$C1
+        cmp     #$C1 ; No message waiting
         beq     @ret
-        lda     $40f0
-        sta     statusContent
+        lda     FIFO_DATA
+        sta     sendMessageFlag
+        jmp     receiveMessage
 @ret:
         rts
 
@@ -141,14 +143,14 @@ nmi:    pha
         jsr     twoDigitsToPPU
         lda     #$FF
         sta     PPUDATA
-        lda     $40F0
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     $40F1
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
+        ; lda     $40F0
+        ; jsr     twoDigitsToPPU
+        ; lda     #$FF
+        ; sta     PPUDATA
+        ; lda     $40F1
+        ; jsr     twoDigitsToPPU
+        ; lda     #$FF
+        ; sta     PPUDATA
         lda     newButtons
         jsr     twoDigitsToPPU
         lda     #$FF
@@ -157,7 +159,7 @@ nmi:    pha
         jsr     twoDigitsToPPU
         lda     #$FF
         sta     PPUDATA
-        lda     messageSent
+        lda     sendMessageFlag
         jsr     twoDigitsToPPU
         lda     #$00
         sta     PPUSCROLL
@@ -167,7 +169,7 @@ nmi:    pha
         lda     #%00001110
         sta     PPUMASK
         jsr     readjoy
-        lda     newButtons
+        lda     sendMessageFlag
         beq     @nonePressed
         jsr     sendMessage
 @nonePressed:
