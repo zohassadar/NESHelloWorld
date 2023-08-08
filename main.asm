@@ -13,7 +13,80 @@ PPUADDR         := $2006
 PPUDATA         := $2007
 
 DMC_FREQ        := $4010
+JOYPAD1      := $4016
 JOY2_APUFC      := $4017 
+
+REGISTER = $40f0
+
+sendMessage:
+    lda #$2b
+    sta REGISTER
+    eor #$ff
+    sta REGISTER
+    lda #$22
+    sta REGISTER
+    eor #$ff
+    sta REGISTER
+    lda #$05
+    sta REGISTER
+    lda #$00
+    sta REGISTER
+    lda frameCounter
+    sta REGISTER
+    lda frameCounter
+    sta REGISTER
+    lda frameCounter
+    sta REGISTER
+    lda frameCounter
+    sta REGISTER
+    lda frameCounter
+    sta REGISTER
+    inc messageSent
+    rts
+
+
+; from https://www.nesdev.org/wiki/Controller_reading_code
+; At the same time that we strobe bit 0, we initialize the ring counter
+; so we're hitting two birds with one stone here
+readjoy:
+    lda #$01
+    ; While the strobe bit is set, buttons will be continuously reloaded.
+    ; This means that reading from JOYPAD1 will only return the state of the
+    ; first button: button A.
+    sta JOYPAD1
+    sta newButtons
+    lsr a        ; now A is 0
+    ; By storing 0 into JOYPAD1, the strobe bit is cleared and the reloading stops.
+    ; This allows all 8 buttons (newly reloaded) to be read from JOYPAD1.
+    sta JOYPAD1
+@loop:
+    lda JOYPAD1
+    lsr a	       ; bit 0 -> Carry
+    rol newButtons  ; Carry -> bit 0; bit 7 -> Carry
+    bcc @loop
+    lda newButtons
+    pha
+    eor heldButtons
+    and newButtons
+    sta newButtons
+    pla
+    sta heldButtons
+    rts
+
+
+
+receiveMessage:
+    sta dataContent
+    lda $40F1
+    cmp #$40
+    beq @ret
+    cmp #$C1
+    beq @ret
+    lda $40f0
+    sta statusContent
+@ret:
+    rts
+
 
 
 renderRows:
@@ -54,6 +127,7 @@ nmi:    pha
         tya
         pha
         inc frameCounter
+        jsr receiveMessage
 
         jsr setRenderedRow
         lda renderedRow
@@ -73,6 +147,18 @@ nmi:    pha
         sta PPUDATA
         lda $40F1
         jsr twoDigitsToPPU
+        lda #$FF
+        sta PPUDATA
+        lda newButtons
+        jsr twoDigitsToPPU
+        lda #$FF
+        sta PPUDATA
+        lda heldButtons
+        jsr twoDigitsToPPU
+        lda #$FF
+        sta PPUDATA
+        lda messageSent
+        jsr twoDigitsToPPU
         lda #$00
         sta PPUSCROLL
         sta PPUSCROLL
@@ -80,6 +166,11 @@ nmi:    pha
     sta PPUCTRL
     lda #%00001110
     sta PPUMASK
+        jsr readjoy
+        lda newButtons
+        beq @nonePressed
+        jsr sendMessage
+@nonePressed:
         pla
         tay
         pla
