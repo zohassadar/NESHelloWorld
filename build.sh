@@ -1,6 +1,8 @@
 #!/bin/bash
 
 compile_flags=()
+set -x
+set -e
 
 help () {
     echo "Usage: $0 [-f] [-v] [-h]"
@@ -11,7 +13,7 @@ help () {
 
 while getopts "f:vh" flag; do
   case "${flag}" in
-    v) set -x ;;
+    v) echo "This option doesn't do anything" ;;
     f)
         compile_flags+=("-D ${OPTARG}")
         echo "${OPTARG} enabled"  ;;
