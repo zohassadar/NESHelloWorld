@@ -129,7 +129,7 @@ nmi:    pha
         tya
         pha
         inc     frameCounter
-        jsr     receiveMessage
+        ; jsr     receiveMessage
 
         jsr     setRenderedRow
         lda     renderedRow
@@ -143,24 +143,24 @@ nmi:    pha
         jsr     twoDigitsToPPU
         lda     #$FF
         sta     PPUDATA
-        ; lda     $40F0
-        ; jsr     twoDigitsToPPU
-        ; lda     #$FF
-        ; sta     PPUDATA
-        ; lda     $40F1
-        ; jsr     twoDigitsToPPU
-        ; lda     #$FF
-        ; sta     PPUDATA
+        lda     FIFO_DATA
+        jsr     twoDigitsToPPU
+        lda     #$FF
+        sta     PPUDATA
+        lda     FIFO_STATUS
+        jsr     twoDigitsToPPU
+        lda     #$FF
+        sta     PPUDATA
         lda     newButtons
         jsr     twoDigitsToPPU
         lda     #$FF
         sta     PPUDATA
         lda     heldButtons
         jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     sendMessageFlag
-        jsr     twoDigitsToPPU
+        ; lda     #$FF
+        ; sta     PPUDATA
+        ; lda     sendMessageFlag
+        ; jsr     twoDigitsToPPU
         lda     #$00
         sta     PPUSCROLL
         sta     PPUSCROLL
@@ -169,10 +169,10 @@ nmi:    pha
         lda     #%00001110
         sta     PPUMASK
         jsr     readjoy
-        lda     sendMessageFlag
-        beq     @nonePressed
-        jsr     sendMessage
-@nonePressed:
+;         lda     sendMessageFlag
+;         beq     @nonePressed
+;         jsr     sendMessage
+; @nonePressed:
         pla
         tay
         pla
