@@ -16,19 +16,69 @@ DMC_FREQ :=     $4010
 JOYPAD1 :=      $4016
 JOY2_APUFC :=   $4017
 
+BUTTON_DOWN :=  $4
+BUTTON_UP :=    $8
+BUTTON_RIGHT := $1
+BUTTON_LEFT :=  $2
+BUTTON_B :=     $40
+BUTTON_A :=     $80
+BUTTON_SELECT := $20
+BUTTON_START := $10
+
+
 FIFO_DATA :=    $40f0
 FIFO_STATUS :=  $40f1
 
+.include "charmap.asm"
+
+sendRepeatedByte:
+        lda     repeats
+        beq     @ret
+        inc     counter
+        lda     #$2b            ; "+"
+        sta     FIFO_DATA
+        eor     #$ff
+        sta     FIFO_DATA
+        lda     #$22            ; CMD_USB_WR
+        sta     FIFO_DATA
+        eor     #$ff
+        sta     FIFO_DATA
+        lda     repeats         ; Length.  16 bit LE
+        sta     FIFO_DATA
+        lda     #$00
+        sta     FIFO_DATA
+        ldx     repeats
+        lda     repeatedByte
+@sendBytes:
+        sta     FIFO_DATA
+        dex
+        bne     @sendBytes
+@ret:   rts
+
+
+readStatusByte:
+        inc     counter
+        lda     FIFO_STATUS
+        sta     readStatus
+        rts
+
+readFifoByte:
+        inc     counter
+        lda     FIFO_DATA
+        sta     readFifo
+        rts
+
+
 sendMessage:
-        lda     #$2b        ; "+"
+        lda     #$2b            ; "+"
         sta     FIFO_DATA
         eor     #$ff
         sta     FIFO_DATA
-        lda     #$22        ; CMD_USB_WR
+        lda     #$22            ; CMD_USB_WR
         sta     FIFO_DATA
         eor     #$ff
         sta     FIFO_DATA
-        lda     #$05        ; Length.  16 bit LE
+        lda     #$05            ; Length.  16 bit LE
         sta     FIFO_DATA
         lda     #$00
         sta     FIFO_DATA
@@ -76,39 +126,156 @@ readjoy:
         rts
 
 
+nmi:    pha
+        txa
+        pha
+        tya
+        pha
+        inc     frameCounter
+        lda     #$01
+        sta     nmiHappened
 
-receiveMessage:
-        lda     FIFO_STATUS
-        cmp     #$40 ; Mesen/FCEUX unknown register
-        beq     @ret
-        cmp     #$C1 ; No message waiting
-        beq     @ret
-        lda     FIFO_DATA
-        sta     sendMessageFlag
-        jmp     receiveMessage
-@ret:
-        rts
-
-
-
-renderRows:
-        ; .word $2021,
-        .word   $2041,$2061,$2081,$20a1
-        .word   $20c1,$20e1,$2101,$2121,$2141
-        .word   $2161,$2181,$21a1,$21c1,$21e1
-        .word   $2201,$2221,$2241,$2261,$2281
-        .word   $22a1,$22c1,$22e1,$2301,$2321
-        .word   $2341,$2361     ;,$2381
+        lda     #$20
+        sta     PPUADDR
+        lda     #$8D
+        sta     PPUADDR
+        ldx     #$F
+        lda     #$FF
+blankCursor:
+        sta     PPUDATA
+        dex
+        bpl     blankCursor
 
 
-setRenderedRow:
-        inc     renderedRow
-        lda     renderedRow
-        cmp     #$1a
-        bne     @ret
+        lda     #$20
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+
+        ldx     #<wordByte
+        ldy     #>wordByte
+        jsr     sendWordToPPU
+        lda     repeatedByteHi
+        sta     PPUDATA
+        lda     repeatedByteLo
+        sta     PPUDATA
+
+        ldx     #<wordRepeats
+        ldy     #>wordRepeats
+        jsr     sendWordToPPU
+
+        lda     repeatsHi
+        sta     PPUDATA
+        lda     repeatsLo
+        sta     PPUDATA
+
+; status row
+        lda     #$21
+        sta     PPUADDR
+        lda     #$21
+        sta     PPUADDR
+        ldx     #<wordReadStatus
+        ldy     #>wordReadStatus
+        jsr     sendWordToPPU
+        lda     readStatus
+        jsr     twoDigitsToPPU
+
+; fifo row
+        lda     #$21
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+        ldx     #<wordReadFifo
+        ldy     #>wordReadFifo
+        jsr     sendWordToPPU
+        lda     readFifo
+        jsr     twoDigitsToPPU
+
+; counter row
+        lda     #$22
+        sta     PPUADDR
+        lda     #$21
+        sta     PPUADDR
+        ldx     #<wordCounter
+        ldy     #>wordCounter
+        jsr     sendWordToPPU
+        lda     counter
+        jsr     twoDigitsToPPU
+
+; plant cursor
+        ldx     menuRow
+        lda     cursorHiBytes,x
+        sta     PPUADDR
+        lda     cursorLoBytes,x
+        sta     PPUADDR
+        lda     #$F0
+        sta     PPUDATA
+
+        lda     menuColumn
+        beq     @noTopCursor
+
+; top cursor
+        lda     #$20
+        sta     PPUADDR
+        ldx     menuColumn
+        lda     topCursorOffsets-1,x
+        clc
+        adc     #$8C
+        clc
+        adc     menuColumn
+        sta     PPUADDR
+        lda     #$F1
+        sta     PPUDATA
+@noTopCursor:
         lda     #$00
-        sta     renderedRow
-@ret:
+        sta     PPUSCROLL
+        sta     PPUSCROLL
+        lda     #%10001000
+        sta     PPUCTRL
+        lda     #%00001110
+        sta     PPUMASK
+        jsr     readjoy
+
+        pla
+        tay
+        pla
+        tax
+        pla
+irq:    rti
+
+
+cursorHiBytes:
+        .byte   $20,$21,$21
+cursorLoBytes:
+        .byte   $A1,$21,$A1
+
+topCursorOffsets:
+        .byte   $00,$00,$08,$08
+
+wordByte:
+        .byte   " Send byte $",$FF
+wordRepeats:
+        .byte   " Count $",$FF
+wordReadStatus:
+        .byte   " Read Status: $40f1=$",$FF
+wordReadFifo:
+        .byte   " Read FIFO:   $40f0=$",$FF
+wordCounter:
+        .byte   " Counter: 0x",$FF
+
+
+sendWordToPPU:
+        stx     tmp1
+        sty     tmp2
+        ldy     #$00
+wordLoop:
+        lda     (tmp1),y
+        cmp     #$FF
+        beq     wordLoopEnd
+        sta     PPUDATA
+        iny
+        bne     wordLoop
+wordLoopEnd:
         rts
 
 twoDigitsToPPU:
@@ -123,66 +290,119 @@ twoDigitsToPPU:
         sta     PPUDATA
         rts
 
-nmi:    pha
-        txa
-        pha
-        tya
-        pha
-        inc     frameCounter
-        ; jsr     receiveMessage
 
-        jsr     setRenderedRow
-        lda     renderedRow
-        asl
-        tax
-        lda     renderRows+1,x
-        sta     PPUADDR
-        lda     renderRows,x
-        sta     PPUADDR
-        lda     frameCounter
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     FIFO_DATA
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     FIFO_STATUS
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     newButtons
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        lda     heldButtons
-        jsr     twoDigitsToPPU
-        ; lda     #$FF
-        ; sta     PPUDATA
-        ; lda     sendMessageFlag
-        ; jsr     twoDigitsToPPU
-        lda     #$00
-        sta     PPUSCROLL
-        sta     PPUSCROLL
-        lda     #%10001000
-        sta     PPUCTRL
-        lda     #%00001110
-        sta     PPUMASK
-        jsr     readjoy
-;         lda     sendMessageFlag
-;         beq     @nonePressed
-;         jsr     sendMessage
-; @nonePressed:
-        pla
-        tay
-        pla
-        tax
-        pla
-irq:    rti
 
 loop:
-        nop
+        lda     menuRow
+        bne     @notTopRow
+
+
+        lda     newButtons
+        and     #BUTTON_LEFT
+        beq     @leftNotPressed
+        dec     menuColumn
+        bpl     @leftNotPressed
+        lda     #$04
+        sta     menuColumn
+@leftNotPressed:
+
+        lda     newButtons
+        and     #BUTTON_RIGHT
+        beq     @rightNotPressed
+        inc     menuColumn
+        lda     menuColumn
+        cmp     #$05
+        bne     @rightNotPressed
+        lda     #$00
+        sta     menuColumn
+@rightNotPressed:
+        lda     menuColumn
+        beq     @notTopRow
+
+        ldx     menuColumn
+        lda     newButtons
+        and     #BUTTON_UP
+        beq     @upNotPressedForDigit
+        inc     repeatedByteHi-1,x
+        lda     repeatedByteHi-1,x
+        and     #$0F
+        sta     repeatedByteHi-1,x
+@upNotPressedForDigit:
+        lda     newButtons
+        and     #BUTTON_DOWN
+        beq     @downNotPressedForDigit
+        dec     repeatedByteHi-1,x
+        lda     repeatedByteHi-1,x
+        and     #$0F
+        sta     repeatedByteHi-1,x
+@downNotPressedForDigit:
+
+        jmp     @skipUpDownRead
+@notTopRow:
+        lda     newButtons
+        and     #BUTTON_UP
+        beq     @upNotPressed
+        dec     menuRow
+        bpl     @upNotPressed
+        lda     #$02
+        sta     menuRow
+@upNotPressed:
+        lda     newButtons
+        and     #BUTTON_DOWN
+        beq     @downNotPressed
+        inc     menuRow
+        lda     menuRow
+        cmp     #$03
+        bne     @downNotPressed
+        lda     #$00
+        sta     menuRow
+@downNotPressed:
+@skipUpDownRead:
+
+; move repeats
+        lda     repeatsHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatsLo
+        sta     repeats
+
+; move repeated byte
+        lda     repeatedByteHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatedByteLo
+        sta     repeatedByte
+
+        lda     newButtons
+        and     #BUTTON_A
+        beq     @aNotPressed
+        lda     menuRow
+        jsr     branchOnIndex
+@aNotPressed:
+        lda     #$00
+        sta     nmiHappened
+@waitForNmi:
+        lda     nmiHappened
+        beq     @waitForNmi
         jmp     loop
+
+branches:
+        .addr   sendRepeatedByte
+        .addr   readStatusByte
+        .addr   readFifoByte
+
+branchOnIndex:
+        asl
+        tax
+        lda     branches,x
+        sta     tmp1
+        lda     branches+1,x
+        sta     tmp2
+        jmp     (tmp1)
 
 reset:
         ; from https://www.nesdev.org/wiki/Init_code
@@ -274,8 +494,6 @@ nametableGroup3Loop:
         inx
         bne     nametableGroup3Loop
 
-
-
         lda     #$23
         sta     PPUADDR
         lda     #$00
@@ -287,10 +505,6 @@ nametableGroup4Loop:
         sta     PPUDATA
         dex
         bne     nametableGroup4Loop
-
-
-
-
 
         lda     #$3F
         sta     PPUADDR
@@ -307,24 +521,21 @@ paletteLoop:
         jmp     paletteLoop
 endPaletteLoop:
 
-
         lda     #%10001000
         sta     PPUCTRL
         lda     #%00011110
         sta     PPUMASK
         jmp     loop
 
-
-
 palette:
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
-        .byte   $0F,$30,$16,$12
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
+        .byte   $0F,$30,$30,$30
         .byte   $FF
 
 .segment "VECTORS": absolute
