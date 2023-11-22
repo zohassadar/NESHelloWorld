@@ -68,6 +68,23 @@ readFifoByte:
         sta     readFifo
         rts
 
+countBytesInQueue:
+        inc     counter
+        lda     #$00
+        sta     queueCount
+        sta     queueCount+1
+@checkStatus:
+        lda     FIFO_STATUS
+        cmp     #$41
+        bne     @idle
+        lda     FIFO_DATA
+        inc     queueCount
+        bne     @checkStatus
+        inc     queueCount+1
+        jmp     @checkStatus
+@idle:
+        rts
+
 
 sendMessage:
         lda     #$2b            ; "+"
@@ -137,9 +154,9 @@ nmi:    pha
 
         lda     #$20
         sta     PPUADDR
-        lda     #$8D
+        lda     #$88
         sta     PPUADDR
-        ldx     #$F
+        ldx     #$D
         lda     #$FF
 blankCursor:
         sta     PPUDATA
@@ -191,10 +208,24 @@ blankCursor:
         lda     readFifo
         jsr     twoDigitsToPPU
 
-; counter row
+; count row
         lda     #$22
         sta     PPUADDR
         lda     #$21
+        sta     PPUADDR
+        ldx     #<wordCountQueue
+        ldy     #>wordCountQueue
+        jsr     sendWordToPPU
+        lda     queueCount+1
+        jsr     twoDigitsToPPU
+        lda     queueCount
+        jsr     twoDigitsToPPU
+
+
+; counter row
+        lda     #$22
+        sta     PPUADDR
+        lda     #$A1
         sta     PPUADDR
         ldx     #<wordCounter
         ldy     #>wordCounter
@@ -220,7 +251,7 @@ blankCursor:
         ldx     menuColumn
         lda     topCursorOffsets-1,x
         clc
-        adc     #$8C
+        adc     #$87
         clc
         adc     menuColumn
         sta     PPUADDR
@@ -245,23 +276,25 @@ irq:    rti
 
 
 cursorHiBytes:
-        .byte   $20,$21,$21
+        .byte   $20,$21,$21,$22
 cursorLoBytes:
-        .byte   $A1,$21,$A1
+        .byte   $A1,$21,$A1,$21
 
 topCursorOffsets:
         .byte   $00,$00,$08,$08
 
 wordByte:
-        .byte   " Send byte $",$FF
+        .byte   " Send $",$FF
 wordRepeats:
-        .byte   " Count $",$FF
+        .byte   " count $",$FF
 wordReadStatus:
-        .byte   " Read Status: $40f1=$",$FF
+        .byte   " Read $40f1=$",$FF
 wordReadFifo:
-        .byte   " Read FIFO:   $40f0=$",$FF
+        .byte   " Read $40f0=$",$FF
+wordCountQueue:
+        .byte   " len(queue)=$",$FF
 wordCounter:
-        .byte   " Counter: 0x",$FF
+        .byte   " $",$FF
 
 
 sendWordToPPU:
@@ -344,7 +377,7 @@ loop:
         beq     @upNotPressed
         dec     menuRow
         bpl     @upNotPressed
-        lda     #$02
+        lda     #$03
         sta     menuRow
 @upNotPressed:
         lda     newButtons
@@ -352,7 +385,7 @@ loop:
         beq     @downNotPressed
         inc     menuRow
         lda     menuRow
-        cmp     #$03
+        cmp     #$04
         bne     @downNotPressed
         lda     #$00
         sta     menuRow
@@ -394,6 +427,7 @@ branches:
         .addr   sendRepeatedByte
         .addr   readStatusByte
         .addr   readFifoByte
+        .addr   countBytesInQueue
 
 branchOnIndex:
         asl

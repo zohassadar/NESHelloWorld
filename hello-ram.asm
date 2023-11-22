@@ -23,6 +23,8 @@ repeatedByteLo: .res 1
 repeatsHi: .res 1
 repeatsLo: .res 1
 
+queueCount: .res 2
+
 counter: .res 1
 
 
