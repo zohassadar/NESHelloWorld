@@ -33,7 +33,10 @@ FIFO_STATUS :=  $40f1
 
 sendRepeatedByte:
         lda     repeats
+        bne     @notZero
+        lda     repeats+1
         beq     @ret
+@notZero:
         inc     counter
         lda     #$2b            ; "+"
         sta     FIFO_DATA
@@ -45,13 +48,17 @@ sendRepeatedByte:
         sta     FIFO_DATA
         lda     repeats         ; Length.  16 bit LE
         sta     FIFO_DATA
-        lda     #$00
+        lda     repeats+1
         sta     FIFO_DATA
         ldx     repeats
+        ldy     repeats+1
         lda     repeatedByte
 @sendBytes:
         sta     FIFO_DATA
         dex
+        bne     @sendBytes
+        dey
+        cpy     #$FF
         bne     @sendBytes
 @ret:   rts
 
@@ -83,34 +90,6 @@ countBytesInQueue:
         inc     queueCount+1
         jmp     @checkStatus
 @idle:
-        rts
-
-
-sendMessage:
-        lda     #$2b            ; "+"
-        sta     FIFO_DATA
-        eor     #$ff
-        sta     FIFO_DATA
-        lda     #$22            ; CMD_USB_WR
-        sta     FIFO_DATA
-        eor     #$ff
-        sta     FIFO_DATA
-        lda     #$05            ; Length.  16 bit LE
-        sta     FIFO_DATA
-        lda     #$00
-        sta     FIFO_DATA
-        lda     frameCounter
-        sta     FIFO_DATA
-        lda     frameCounter
-        sta     FIFO_DATA
-        lda     frameCounter
-        sta     FIFO_DATA
-        lda     frameCounter
-        sta     FIFO_DATA
-        lda     frameCounter
-        sta     FIFO_DATA
-        lda     #$00
-        sta     sendMessageFlag
         rts
 
 
@@ -156,7 +135,7 @@ nmi:    pha
         sta     PPUADDR
         lda     #$88
         sta     PPUADDR
-        ldx     #$D
+        ldx     #$F
         lda     #$FF
 blankCursor:
         sta     PPUDATA
@@ -181,9 +160,14 @@ blankCursor:
         ldy     #>wordRepeats
         jsr     sendWordToPPU
 
-        lda     repeatsHi
+
+        lda     repeatsHiHi
         sta     PPUDATA
-        lda     repeatsLo
+        lda     repeatsHiLo
+        sta     PPUDATA
+        lda     repeatsLoHi
+        sta     PPUDATA
+        lda     repeatsLoLo
         sta     PPUDATA
 
 ; status row
@@ -281,7 +265,7 @@ cursorLoBytes:
         .byte   $A1,$21,$A1,$21
 
 topCursorOffsets:
-        .byte   $00,$00,$08,$08
+        .byte   $00,$00,$08,$08,$08,$08
 
 wordByte:
         .byte   " Send $",$FF
@@ -335,7 +319,7 @@ loop:
         beq     @leftNotPressed
         dec     menuColumn
         bpl     @leftNotPressed
-        lda     #$04
+        lda     #$06
         sta     menuColumn
 @leftNotPressed:
 
@@ -344,7 +328,7 @@ loop:
         beq     @rightNotPressed
         inc     menuColumn
         lda     menuColumn
-        cmp     #$05
+        cmp     #$07
         bne     @rightNotPressed
         lda     #$00
         sta     menuColumn
@@ -393,13 +377,22 @@ loop:
 @skipUpDownRead:
 
 ; move repeats
-        lda     repeatsHi
+        lda     repeatsHiHi
         asl
         asl
         asl
         asl
-        ora     repeatsLo
+        ora     repeatsHiLo
+        sta     repeats+1
+
+        lda     repeatsLoHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatsLoLo
         sta     repeats
+
 
 ; move repeated byte
         lda     repeatedByteHi

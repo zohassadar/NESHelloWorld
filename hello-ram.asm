@@ -16,19 +16,24 @@ readStatus: .res 1
 readFifo: .res 1
 
 repeatedByte: .res 1
-repeats: .res 1
+repeats: .res 2
 
 repeatedByteHi: .res 1
 repeatedByteLo: .res 1
-repeatsHi: .res 1
-repeatsLo: .res 1
+
+; should be called count..
+repeatsHiHi: .res 1
+repeatsHiLo: .res 1
+repeatsLoHi: .res 1
+repeatsLoLo: .res 1
+
 
 queueCount: .res 2
 
 counter: .res 1
 
 
-.res    $EB
+.res    $E8
 .bss
 .res    $100
 .res    $100
