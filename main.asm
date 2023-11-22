@@ -50,16 +50,18 @@ sendRepeatedByte:
         sta     FIFO_DATA
         lda     repeats+1
         sta     FIFO_DATA
-        ldx     repeats
-        ldy     repeats+1
         lda     repeatedByte
-@sendBytes:
+        ldy     repeats+1
+        ldx     repeats
+        beq     @decrementY
+@sendByte:
         sta     FIFO_DATA
         dex
-        bne     @sendBytes
+        bne     @sendByte
+@decrementY:
         dey
         cpy     #$FF
-        bne     @sendBytes
+        bne     @sendByte
 @ret:   rts
 
 
