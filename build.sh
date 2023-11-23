@@ -33,11 +33,16 @@ ca65 ${compile_flags[*]} -l hello.lst -g main.asm -o main.o
 
 ld65 -m hello.map -Ln hello.lbl --dbgfile hello.dbg -o hello.nes -C hello.cfg main.o header.o
 
-head -c $(wc -c hello.nes | cut -d ' ' -f 1) </dev/zero >zeroes.nes
-flips --create -i zeroes.nes hello.nes fifo_testrom.ips
-python convert_patch.py > fifo_testrom.py
+
+length=$(wc -c hello.nes | cut -d ' ' -f 1)
+sha1sum=$(sha1sum hello.nes | cut -d ' ' -f 1)
+blank=zeroes.nes
+patch=fifo_testrom.ips
+head -c $length </dev/zero >$blank
+flips --create -i $blank hello.nes $patch
+python convert_patch.py $patch $length $sha1sum > fifo_testrom.py
 cat fifo_testrom.py
-rm fifo_testrom.ips
-rm zeroes.nes
+rm $patch
+rm $blank
 
 
