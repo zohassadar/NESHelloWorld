@@ -150,16 +150,16 @@ blankCursor:
         lda     #$A1
         sta     PPUADDR
 
-        ldx     #<wordByte
-        ldy     #>wordByte
+        ldx     #<stringSend
+        ldy     #>stringSend
         jsr     sendWordToPPU
         lda     repeatedByteHi
         sta     PPUDATA
         lda     repeatedByteLo
         sta     PPUDATA
 
-        ldx     #<wordRepeats
-        ldy     #>wordRepeats
+        ldx     #<stringCount
+        ldy     #>stringCount
         jsr     sendWordToPPU
 
 
@@ -177,8 +177,8 @@ blankCursor:
         sta     PPUADDR
         lda     #$21
         sta     PPUADDR
-        ldx     #<wordReadStatus
-        ldy     #>wordReadStatus
+        ldx     #<stringReadStatus
+        ldy     #>stringReadStatus
         jsr     sendWordToPPU
         lda     readStatus
         jsr     twoDigitsToPPU
@@ -188,8 +188,8 @@ blankCursor:
         sta     PPUADDR
         lda     #$A1
         sta     PPUADDR
-        ldx     #<wordReadFifo
-        ldy     #>wordReadFifo
+        ldx     #<stringReadFifo
+        ldy     #>stringReadFifo
         jsr     sendWordToPPU
         lda     readFifo
         jsr     twoDigitsToPPU
@@ -199,8 +199,8 @@ blankCursor:
         sta     PPUADDR
         lda     #$21
         sta     PPUADDR
-        ldx     #<wordCountQueue
-        ldy     #>wordCountQueue
+        ldx     #<stringCountQueue
+        ldy     #>stringCountQueue
         jsr     sendWordToPPU
         lda     queueCount+1
         jsr     twoDigitsToPPU
@@ -213,8 +213,8 @@ blankCursor:
         sta     PPUADDR
         lda     #$A1
         sta     PPUADDR
-        ldx     #<wordCounter
-        ldy     #>wordCounter
+        ldx     #<stringCounter
+        ldy     #>stringCounter
         jsr     sendWordToPPU
         lda     counter
         jsr     twoDigitsToPPU
@@ -269,18 +269,18 @@ cursorLoBytes:
 topCursorOffsets:
         .byte   $00,$00,$08,$08,$08,$08
 
-wordByte:
-        .byte   " Send $",$FF
-wordRepeats:
-        .byte   " count $",$FF
-wordReadStatus:
-        .byte   " Read $40f1=$",$FF
-wordReadFifo:
-        .byte   " Read $40f0=$",$FF
-wordCountQueue:
-        .byte   " len(queue)=$",$FF
-wordCounter:
-        .byte   " $",$FF
+stringSend:
+        .byte   " Send $",$00
+stringCount:
+        .byte   " count $",$00
+stringReadStatus:
+        .byte   " Read $40f1=$",$00
+stringReadFifo:
+        .byte   " Read $40f0=$",$00
+stringCountQueue:
+        .byte   " len(queue)=$",$00
+stringCounter:
+        .byte   " $",$00
 
 
 sendWordToPPU:
@@ -289,7 +289,6 @@ sendWordToPPU:
         ldy     #$00
 wordLoop:
         lda     (tmp1),y
-        cmp     #$FF
         beq     wordLoopEnd
         sta     PPUDATA
         iny
