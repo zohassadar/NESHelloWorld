@@ -1,5 +1,5 @@
-
 .include "hello-ram.asm"
+.include "charmap.asm"
 
 .segment "PRG"
 
@@ -16,20 +16,155 @@ DMC_FREQ :=     $4010
 JOYPAD1 :=      $4016
 JOY2_APUFC :=   $4017
 
-BUTTON_DOWN :=  $4
-BUTTON_UP :=    $8
-BUTTON_RIGHT := $1
-BUTTON_LEFT :=  $2
-BUTTON_B :=     $40
 BUTTON_A :=     $80
+BUTTON_B :=     $40
 BUTTON_SELECT := $20
 BUTTON_START := $10
-
+BUTTON_UP :=    $8
+BUTTON_DOWN :=  $4
+BUTTON_LEFT :=  $2
+BUTTON_RIGHT := $1
 
 FIFO_DATA :=    $40f0
 FIFO_STATUS :=  $40f1
 
-.include "charmap.asm"
+; Functions
+
+branches:
+        .addr   switchToRamtest
+        .addr   switchToFifo
+ramtestBranches:
+        .addr   noOperation
+        .addr   writeBytes
+        .addr   readBytes
+fifoBranches:
+        .addr   sendRepeatedByte
+        .addr   readStatusByte
+        .addr   readFifoByte
+        .addr   countBytesInQueue
+
+branchOffsets:
+        .byte   $00,(ramtestBranches-branches)/2,(fifoBranches-branches)/2
+
+branchOnIndex:
+        ldy     activeMenu
+        lda     menuRow
+        clc
+        adc     branchOffsets,y
+        asl
+        tax
+        lda     branches,x
+        sta     tmp1
+        lda     branches+1,x
+        sta     tmp2
+        jmp     (tmp1)
+
+loop:
+        ldy     activeMenu
+        lda     menuRow
+        bne     @notTopRow
+
+        lda     newButtons
+        and     #BUTTON_LEFT
+        beq     @leftNotPressed
+        dec     menuColumn
+        bpl     @leftNotPressed
+        lda     upperLimitTopInput,y
+        sta     menuColumn
+@leftNotPressed:
+
+        lda     newButtons
+        and     #BUTTON_RIGHT
+        beq     @rightNotPressed
+        inc     menuColumn
+        lda     menuColumn
+        cmp     pastUpperLimitTopInput,y
+        bne     @rightNotPressed
+        lda     #$00
+        sta     menuColumn
+@rightNotPressed:
+        lda     menuColumn
+        beq     @notTopRow
+        lda     menuColumn
+        clc
+        adc     inputBytesOffsets,y
+        tax
+        lda     newButtons
+        and     #BUTTON_UP
+        beq     @upNotPressedForDigit
+        inc     inputOffset-1,x
+        lda     inputOffset-1,x
+        and     #$0F
+        sta     inputOffset-1,x
+@upNotPressedForDigit:
+        lda     newButtons
+        and     #BUTTON_DOWN
+        beq     @downNotPressedForDigit
+        dec     inputOffset-1,x
+        lda     inputOffset-1,x
+        and     #$0F
+        sta     inputOffset-1,x
+@downNotPressedForDigit:
+
+        jmp     @skipUpDownRead
+@notTopRow:
+        lda     newButtons
+        and     #BUTTON_UP
+        beq     @upNotPressed
+        dec     menuRow
+        bpl     @upNotPressed
+        lda     rowLimit,y
+        sta     menuRow
+@upNotPressed:
+        lda     newButtons
+        and     #BUTTON_DOWN
+        beq     @downNotPressed
+        inc     menuRow
+        lda     menuRow
+        cmp     pastRowLimit,y
+        bne     @downNotPressed
+        lda     #$00
+        sta     menuRow
+@downNotPressed:
+@skipUpDownRead:
+        jsr     moveNybblesToBytes
+
+        lda     newButtons
+        and     #BUTTON_A
+        beq     @aNotPressed
+
+        jsr     branchOnIndex
+        jmp     @finishLoop
+@aNotPressed:
+        lda     newButtons
+        and     #BUTTON_B
+        beq     @finishLoop
+        lda     activeMenu
+        beq     @finishLoop
+        jsr     switchToMainMenu
+@finishLoop:
+        lda     #$00
+        sta     nmiHappened
+@waitForNmi:
+        lda     nmiHappened
+        beq     @waitForNmi
+        jmp     loop
+
+
+upperLimitTopInput:
+        .byte   $00,$08,$06
+pastUpperLimitTopInput:
+        .byte   $01,$09,$07
+inputBytesOffsets:
+        .byte   $00,$00,$08
+
+rowLimit:
+        .byte   $01,$02,$03
+pastRowLimit:
+        .byte   $02,$03,$04
+
+
+; Switch menus
 
 switchToFifo:
         lda     #$02
@@ -49,6 +184,23 @@ storeAndZero:
         sta     renderMode
         rts
 
+; Ram Test
+
+writeBytes:
+        lda     count
+        beq     noOperation
+        ldy     #$00
+@writeLoop:
+        lda     startingByte
+        sta     (startingAddress),y
+        inc     startingByte
+        iny
+        cpy     count
+        bne     @writeLoop
+        inc     counter
+noOperation:
+        rts
+
 readBytes:
         ldy     #$00
 @readLoop:
@@ -60,22 +212,7 @@ readBytes:
         inc     counter
         rts
 
-
-writeBytes:
-        lda     count
-        beq     @ret
-        ldy     #$00
-@writeLoop:
-        lda     startingByte
-        sta     (startingAddress),y
-        inc     startingByte
-        iny
-        cpy     count
-        bne     @writeLoop
-        inc     counter
-@ret:   rts
-noOperation:
-        rts
+; Fifo Test
 
 sendRepeatedByte:
         lda     repeats
@@ -142,101 +279,80 @@ countBytesInQueue:
 
 
 
+hiBytes:
+        .byte   startingAddressHiHi,startingAddressLoHi,startingByteHi,countHi,repeatsHiHi,repeatsLoHi,repeatedByteHi
+loBytes:
+        .byte   startingAddressHiLo,startingAddressLoLo,startingByteLo,countLo,repeatsHiLo,repeatsLoLo,repeatedByteLo
+targets:
+        .byte   startingAddress+1,startingAddress,startingByte,count,repeats+1,repeats,repeatedByte
+
+
 moveNybblesToBytes:
+        ldy     #$00
 
-; move repeats
-        lda     repeatsHiHi
+@moveNybbles:
+        ldx     hiBytes,y
+        lda     tmp1,x
         asl
         asl
         asl
         asl
-        ora     repeatsHiLo
-        sta     repeats+1
 
-        lda     repeatsLoHi
-        asl
-        asl
-        asl
-        asl
-        ora     repeatsLoLo
-        sta     repeats
+        ldx     loBytes,y
+        ora     tmp1,x
 
+        ldx     targets,y
+        sta     tmp1,x
 
-; move repeated byte
-        lda     repeatedByteHi
-        asl
-        asl
-        asl
-        asl
-        ora     repeatedByteLo
-        sta     repeatedByte
-
-; move address
-        lda     startingAddressHiHi
-        asl
-        asl
-        asl
-        asl
-        ora     startingAddressHiLo
-        sta     startingAddress+1
-
-        lda     startingAddressLoHi
-        asl
-        asl
-        asl
-        asl
-        ora     startingAddressLoLo
-        sta     startingAddress
-
-        lda     startingByteHi
-        asl
-        asl
-        asl
-        asl
-        ora     startingByteLo
-        sta     startingByte
-
-
-
-        lda     countHi
-        asl
-        asl
-        asl
-        asl
-        ora     countLo
-        sta     count
+        iny
+        cpy     #(loBytes-hiBytes)
+        bne     @moveNybbles
 
         rts
 
 
+; NMI Functions
 
-; from https://www.nesdev.org/wiki/Controller_reading_code
-; At the same time that we strobe bit 0, we initialize the ring counter
-; so we're hitting two birds with one stone here
-readjoy:
-        lda     #$01
-        ; While the strobe bit is set, buttons will be continuously reloaded.
-        ; This means that reading from JOYPAD1 will only return the state of the
-        ; first button: button A.
-        sta     JOYPAD1
-        sta     newButtons
-        lsr     a               ; now A is 0
-        ; By storing 0 into JOYPAD1, the strobe bit is cleared and the reloading stops.
-        ; This allows all 8 buttons (newly reloaded) to be read from JOYPAD1.
-        sta     JOYPAD1
-@loop:
-        lda     JOYPAD1
-        lsr     a               ; bit 0 -> Carry
-        rol     newButtons      ; Carry -> bit 0; bit 7 -> Carry
-        bcc     @loop
-        lda     newButtons
+nmi:    pha
+        txa
         pha
-        eor     heldButtons
-        and     newButtons
-        sta     newButtons
+        tya
+        pha
+        inc     frameCounter
+        lda     #$01
+        sta     nmiHappened
+        lda     renderMode
+        jsr     renderBranchOnIndex
+        lda     #$00
+        sta     PPUSCROLL
+        sta     PPUSCROLL
+        lda     #%10001000
+        sta     PPUCTRL
+        lda     #%00001110
+        sta     PPUMASK
+        jsr     readjoy
         pla
-        sta     heldButtons
-        rts
+        tay
+        pla
+        tax
+        pla
+irq:    rti
+
+renderBranches:
+        .addr   renderMainMenu
+        .addr   renderRamTestScreen
+        .addr   renderFifoScreen
+        .addr   renderBlankScreen
+
+renderBranchOnIndex:
+        lda     renderMode
+        asl
+        tax
+        lda     renderBranches,x
+        sta     tmp1
+        lda     renderBranches+1,x
+        sta     tmp2
+        jmp     (tmp1)
 
 
 renderMainMenu:
@@ -543,52 +659,49 @@ renderBlankScreen:
         sta     PPUMASK
         lda     activeMenu
         sta     renderMode
-        jsr     blankOutNameTable
-        @vblankwait:
+blankOutNameTable:
+        ldx     #$C0
+        ldy     #$04
+        lda     #$20
+        sta     PPUADDR
+        lda     #$00
+        sta     PPUADDR
+        lda     #$FF
+@blankingLoop:
+        sta     PPUDATA
+        dex
+        bne     @blankingLoop
+        dey
+        bne     @blankingLoop
+waitForVBlank:
         bit     PPUSTATUS
-        bpl     @vblankwait
+        bpl     waitForVBlank
         rts
 
-renderBranchOnIndex:
-        asl
-        tax
-        lda     renderBranches,x
-        sta     tmp1
-        lda     renderBranches+1,x
-        sta     tmp2
-        jmp     (tmp1)
+sendWordToPPU:
+        stx     tmp1
+        sty     tmp2
+        ldy     #$00
+wordLoop:
+        lda     (tmp1),y
+        beq     wordLoopEnd
+        sta     PPUDATA
+        iny
+        bne     wordLoop
+wordLoopEnd:
+        rts
 
-renderBranches:
-        .addr   renderMainMenu
-        .addr   renderRamTestScreen
-        .addr   renderFifoScreen
-        .addr   renderBlankScreen
-
-nmi:    pha
-        txa
+twoDigitsToPPU:
         pha
-        tya
-        pha
-        inc     frameCounter
-        lda     #$01
-        sta     nmiHappened
-        lda     renderMode
-        jsr     renderBranchOnIndex
-        lda     #$00
-        sta     PPUSCROLL
-        sta     PPUSCROLL
-        lda     #%10001000
-        sta     PPUCTRL
-        lda     #%00001110
-        sta     PPUMASK
-        jsr     readjoy
+        lsr
+        lsr
+        lsr
+        lsr
+        sta     PPUDATA
         pla
-        tay
-        pla
-        tax
-        pla
-irq:    rti
-
+        and     #$0F
+        sta     PPUDATA
+        rts
 
 cursorHiBytes:
         .byte   $20,$21,$21,$22
@@ -624,222 +737,33 @@ stringCounter:
         .byte   " $",$00
 
 
-sendWordToPPU:
-        stx     tmp1
-        sty     tmp2
-        ldy     #$00
-wordLoop:
-        lda     (tmp1),y
-        beq     wordLoopEnd
-        sta     PPUDATA
-        iny
-        bne     wordLoop
-wordLoopEnd:
-        rts
 
-twoDigitsToPPU:
+; from https://www.nesdev.org/wiki/Controller_reading_code
+; At the same time that we strobe bit 0, we initialize the ring counter
+; so we're hitting two birds with one stone here
+readjoy:
+        lda     #$01
+        ; While the strobe bit is set, buttons will be continuously reloaded.
+        ; This means that reading from JOYPAD1 will only return the state of the
+        ; first button: button A.
+        sta     JOYPAD1
+        sta     newButtons
+        lsr     a               ; now A is 0
+        ; By storing 0 into JOYPAD1, the strobe bit is cleared and the reloading stops.
+        ; This allows all 8 buttons (newly reloaded) to be read from JOYPAD1.
+        sta     JOYPAD1
+@loop:
+        lda     JOYPAD1
+        lsr     a               ; bit 0 -> Carry
+        rol     newButtons      ; Carry -> bit 0; bit 7 -> Carry
+        bcc     @loop
+        lda     newButtons
         pha
-        lsr
-        lsr
-        lsr
-        lsr
-        sta     PPUDATA
+        eor     heldButtons
+        and     newButtons
+        sta     newButtons
         pla
-        and     #$0F
-        sta     PPUDATA
-        rts
-
-
-
-upperLimitTopInput:
-        .byte   $00,$08,$06
-pastUpperLimitTopInput:
-        .byte   $01,$09,$07
-inputBytesOffsets:
-        .byte   $00,$00,$08
-
-rowLimit:
-        .byte   $01,$02,$03
-pastRowLimit:
-        .byte   $02,$03,$04
-
-loop:
-        ldy     activeMenu
-        lda     menuRow
-        bne     @notTopRow
-
-
-        lda     newButtons
-        and     #BUTTON_LEFT
-        beq     @leftNotPressed
-        dec     menuColumn
-        bpl     @leftNotPressed
-        lda     upperLimitTopInput,y
-        sta     menuColumn
-@leftNotPressed:
-
-        lda     newButtons
-        and     #BUTTON_RIGHT
-        beq     @rightNotPressed
-        inc     menuColumn
-        lda     menuColumn
-        cmp     pastUpperLimitTopInput,y
-        bne     @rightNotPressed
-        lda     #$00
-        sta     menuColumn
-@rightNotPressed:
-        lda     menuColumn
-        beq     @notTopRow
-        lda     menuColumn
-        clc
-        adc     inputBytesOffsets,y
-        tax
-        lda     newButtons
-        and     #BUTTON_UP
-        beq     @upNotPressedForDigit
-        inc     inputOffset-1,x
-        lda     inputOffset-1,x
-        and     #$0F
-        sta     inputOffset-1,x
-@upNotPressedForDigit:
-        lda     newButtons
-        and     #BUTTON_DOWN
-        beq     @downNotPressedForDigit
-        dec     inputOffset-1,x
-        lda     inputOffset-1,x
-        and     #$0F
-        sta     inputOffset-1,x
-@downNotPressedForDigit:
-
-        jmp     @skipUpDownRead
-@notTopRow:
-        lda     newButtons
-        and     #BUTTON_UP
-        beq     @upNotPressed
-        dec     menuRow
-        bpl     @upNotPressed
-        lda     rowLimit,y
-        sta     menuRow
-@upNotPressed:
-        lda     newButtons
-        and     #BUTTON_DOWN
-        beq     @downNotPressed
-        inc     menuRow
-        lda     menuRow
-        cmp     pastRowLimit,y
-        bne     @downNotPressed
-        lda     #$00
-        sta     menuRow
-@downNotPressed:
-@skipUpDownRead:
-        jsr     moveNybblesToBytes
-
-        lda     newButtons
-        and     #BUTTON_A
-        beq     @aNotPressed
-        ldy     activeMenu
-        lda     menuRow
-        clc
-        adc     branchOffsets,y
-        jsr     branchOnIndex
-        jmp     @finishLoop
-@aNotPressed:
-        lda     newButtons
-        and     #BUTTON_B
-        beq     @finishLoop
-        lda     activeMenu
-        beq     @finishLoop
-        jsr     switchToMainMenu
-@finishLoop:
-
-waitForNmi:
-        lda     #$00
-        sta     nmiHappened
-@waitForNmi:
-        lda     nmiHappened
-        beq     @waitForNmi
-        jmp     loop
-
-branchOffsets:
-        .byte   $00,(ramtestBranches-branches)/2,(fifoBranches-branches)/2
-
-branches:
-        ; main menu
-        .addr   switchToRamtest
-        .addr   switchToFifo
-        ; ramtest
-ramtestBranches:
-        .addr   noOperation
-        .addr   writeBytes
-        .addr   readBytes
-fifoBranches:
-        ; fifo
-        .addr   sendRepeatedByte
-        .addr   readStatusByte
-        .addr   readFifoByte
-        .addr   countBytesInQueue
-
-branchOnIndex:
-        asl
-        tax
-        lda     branches,x
-        sta     tmp1
-        lda     branches+1,x
-        sta     tmp2
-        jmp     (tmp1)
-
-blankOutNameTable:
-
-        lda     #$20
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup1Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup1Loop
-
-
-        lda     #$21
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup2Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup2Loop
-
-
-        lda     #$22
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup3Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup3Loop
-
-        lda     #$23
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$C0
-        lda     #$FF
-nametableGroup4Loop:
-        sta     PPUDATA
-        dex
-        bne     nametableGroup4Loop
-
+        sta     heldButtons
         rts
 
 
@@ -866,9 +790,7 @@ reset:
 
         ; First of two waits for vertical blank to make sure that the
         ; PPU has stabilized
-@vblankwait1:
-        bit     PPUSTATUS
-        bpl     @vblankwait1
+        jsr     waitForVBlank
 
         ; We now have about 30,000 cycles to burn before the PPU stabilizes.
         ; One thing we can do with this time is put RAM in a known state.
@@ -890,25 +812,21 @@ reset:
         ; Other things you can do between vblank waits are set up audio
         ; or set up other mapper registers.
 
-@vblankwait2:
-        bit     PPUSTATUS
-        bpl     @vblankwait2
-
-        jsr     blankOutNameTable
+        jsr     waitForVBlank
 
         lda     #$3F
         sta     PPUADDR
         lda     #$00
         sta     PPUADDR
-        ldx     #$00
+        ldx     #$0
 paletteLoop:
         lda     palette,x
-        cmp     #$FF
-        beq     endPaletteLoop
         sta     PPUDATA
         inx
-        jmp     paletteLoop
-endPaletteLoop:
+        cpx     #(endpalette-palette)
+        bne     paletteLoop
+
+        jsr     blankOutNameTable
 
         lda     #%10001000
         sta     PPUCTRL
@@ -925,7 +843,7 @@ palette:
         .byte   $0F,$30,$30,$30
         .byte   $0F,$30,$30,$30
         .byte   $0F,$30,$30,$30
-        .byte   $FF
+endpalette:
 
 .segment "VECTORS": absolute
 

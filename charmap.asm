@@ -1,6 +1,6 @@
 .charmap ' ', $20
 .charmap '!', $21
-; .charmap '"', $22
+; .charmap '"', $22 ; how to define a double quote?
 .charmap '#', $23
 .charmap '$', $24
 .charmap '%', $25

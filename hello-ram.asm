@@ -4,8 +4,8 @@ tmp2:   .res    1               ; $0001
 frameCounter: .res 1            ; $0002
 renderedRow: .res 1             ; $0003
 sendMessageFlag: .res 1         ; $0004
-newButtons: .res 1              ; $0007
-heldButtons: .res 1             ; $0008
+newButtons: .res 1              ; $0005
+heldButtons: .res 1             ; $0006
 
 nmiHappened: .res 1
 renderMode: .res 1 
@@ -55,11 +55,15 @@ repeatsLoLo: .res 1
 readBuffer: .res $10
 
 .res    $CA
+
 .bss
-.res    $100
-.res    $100
-.res    $100
-.res    $100
-.res    $100
-.res    $100
-.res    $100
+stack:
+    .res    $100
+
+unused:
+    .res    $100
+    .res    $100
+    .res    $100
+    .res    $100
+    .res    $100
+    .res    $100
