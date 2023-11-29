@@ -31,6 +31,52 @@ FIFO_STATUS :=  $40f1
 
 .include "charmap.asm"
 
+switchToFifo:
+        lda     #$02
+        bne     storeAndZero
+switchToRamtest:
+        lda     #$01
+        bne     storeAndZero
+switchToMainMenu:
+        lda     #$00
+storeAndZero:
+        sta     activeMenu
+        inc     counter
+        lda     #$00
+        sta     menuColumn
+        sta     menuRow
+        lda     #$03
+        sta     renderMode
+        rts
+
+readBytes:
+        ldy     #$00
+@readLoop:
+        lda     (startingAddress),y
+        sta     readBuffer,y
+        iny
+        cpy     #$10
+        bne     @readLoop
+        inc     counter
+        rts
+
+
+writeBytes:
+        lda     count
+        beq     @ret
+        ldy     #$00
+@writeLoop:
+        lda     startingByte
+        sta     (startingAddress),y
+        inc     startingByte
+        iny
+        cpy     count
+        bne     @writeLoop
+        inc     counter
+@ret:   rts
+noOperation:
+        rts
+
 sendRepeatedByte:
         lda     repeats
         bne     @notZero
@@ -95,6 +141,75 @@ countBytesInQueue:
         rts
 
 
+
+moveNybblesToBytes:
+
+; move repeats
+        lda     repeatsHiHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatsHiLo
+        sta     repeats+1
+
+        lda     repeatsLoHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatsLoLo
+        sta     repeats
+
+
+; move repeated byte
+        lda     repeatedByteHi
+        asl
+        asl
+        asl
+        asl
+        ora     repeatedByteLo
+        sta     repeatedByte
+
+; move address
+        lda     startingAddressHiHi
+        asl
+        asl
+        asl
+        asl
+        ora     startingAddressHiLo
+        sta     startingAddress+1
+
+        lda     startingAddressLoHi
+        asl
+        asl
+        asl
+        asl
+        ora     startingAddressLoLo
+        sta     startingAddress
+
+        lda     startingByteHi
+        asl
+        asl
+        asl
+        asl
+        ora     startingByteLo
+        sta     startingByte
+
+
+
+        lda     countHi
+        asl
+        asl
+        asl
+        asl
+        ora     countLo
+        sta     count
+
+        rts
+
+
+
 ; from https://www.nesdev.org/wiki/Controller_reading_code
 ; At the same time that we strobe bit 0, we initialize the ring counter
 ; so we're hitting two birds with one stone here
@@ -124,15 +239,194 @@ readjoy:
         rts
 
 
-nmi:    pha
-        txa
-        pha
-        tya
-        pha
-        inc     frameCounter
-        lda     #$01
-        sta     nmiHappened
+renderMainMenu:
 
+; ram test
+        lda     #$20
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+        ldx     #<stringRamTest
+        ldy     #>stringRamTest
+        jsr     sendWordToPPU
+
+; fifo test
+        lda     #$21
+        sta     PPUADDR
+        lda     #$21
+        sta     PPUADDR
+        ldx     #<stringFifoTest
+        ldy     #>stringFifoTest
+        jsr     sendWordToPPU
+
+; Counter
+        lda     #$22
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+        ldx     #<stringSpaceDollar
+        ldy     #>stringSpaceDollar
+        jsr     sendWordToPPU
+        lda     counter
+        jsr     twoDigitsToPPU
+
+; plant cursor
+        ldx     menuRow
+        lda     cursorHiBytes,x
+        sta     PPUADDR
+        lda     cursorLoBytes,x
+        sta     PPUADDR
+        lda     #$F0
+        sta     PPUDATA
+
+        rts
+
+
+renderRamTestScreen:
+        lda     #$20
+        sta     PPUADDR
+        lda     #$83
+        sta     PPUADDR
+        ldx     #$C
+        lda     #$FF
+@blankCursor:
+        sta     PPUDATA
+        dex
+        bpl     @blankCursor
+
+
+        lda     #$20
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+
+        ldx     #<stringSpaceDollar
+        ldy     #>stringSpaceDollar
+        jsr     sendWordToPPU
+        lda     startingAddressHiHi
+        sta     PPUDATA
+        lda     startingAddressHiLo
+        sta     PPUDATA
+        lda     startingAddressLoHi
+        sta     PPUDATA
+        lda     startingAddressLoLo
+        sta     PPUDATA
+
+        ldx     #<stringSpaceDollar
+        ldy     #>stringSpaceDollar
+        jsr     sendWordToPPU
+
+        lda     startingByteHi
+        sta     PPUDATA
+        lda     startingByteLo
+        sta     PPUDATA
+
+        ldx     #<stringSpaceDollar
+        ldy     #>stringSpaceDollar
+        jsr     sendWordToPPU
+
+        lda     countHi
+        sta     PPUDATA
+        lda     countLo
+        sta     PPUDATA
+
+
+; write row
+        lda     #$21
+        sta     PPUADDR
+        lda     #$21
+        sta     PPUADDR
+        ldx     #<stringWrite
+        ldy     #>stringWrite
+        jsr     sendWordToPPU
+
+
+; read row
+        lda     #$21
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+        ldx     #<stringRead
+        ldy     #>stringRead
+        jsr     sendWordToPPU
+
+
+; read results top row
+        lda     #$22
+        sta     PPUADDR
+        lda     #$21
+        sta     PPUADDR
+        ldx     #0
+writeTopRow:
+        lda     readBuffer,x
+        jsr     twoDigitsToPPU
+        lda     #$FF
+        sta     PPUDATA
+        inx
+        cpx     #$08
+        bne     writeTopRow
+
+
+; read results bottom row
+        lda     #$22
+        sta     PPUADDR
+        lda     #$41
+        sta     PPUADDR
+        ldx     #0
+writeBottomRow:
+        lda     readBuffer+8,x
+        jsr     twoDigitsToPPU
+        lda     #$FF
+        sta     PPUDATA
+        inx
+        cpx     #$08
+        bne     writeBottomRow
+
+
+; Counter
+        lda     #$22
+        sta     PPUADDR
+        lda     #$A1
+        sta     PPUADDR
+        ldx     #<stringSpaceDollar
+        ldy     #>stringSpaceDollar
+        jsr     sendWordToPPU
+        lda     counter
+        jsr     twoDigitsToPPU
+
+
+; plant cursor
+        lda     menuColumn
+        bne     @checkTop
+        ldx     menuRow
+        lda     cursorHiBytes,x
+        sta     PPUADDR
+        lda     cursorLoBytes,x
+        sta     PPUADDR
+        lda     #$F0
+        sta     PPUDATA
+
+
+@checkTop:
+        lda     menuColumn
+        beq     @noTopCursor
+
+; top cursor
+        lda     #$20
+        sta     PPUADDR
+        ldx     menuColumn
+        lda     ramtestOffsets-1,x
+        clc
+        adc     #$82
+        clc
+        adc     menuColumn
+        sta     PPUADDR
+        lda     #$F1
+        sta     PPUDATA
+@noTopCursor:
+        rts
+
+renderFifoScreen:
         lda     #$20
         sta     PPUADDR
         lda     #$88
@@ -143,7 +437,6 @@ blankCursor:
         sta     PPUDATA
         dex
         bpl     blankCursor
-
 
         lda     #$20
         sta     PPUADDR
@@ -161,7 +454,6 @@ blankCursor:
         ldx     #<stringCount
         ldy     #>stringCount
         jsr     sendWordToPPU
-
 
         lda     repeatsHiHi
         sta     PPUDATA
@@ -207,7 +499,6 @@ blankCursor:
         lda     queueCount
         jsr     twoDigitsToPPU
 
-
 ; counter row
         lda     #$22
         sta     PPUADDR
@@ -235,7 +526,7 @@ blankCursor:
         lda     #$20
         sta     PPUADDR
         ldx     menuColumn
-        lda     topCursorOffsets-1,x
+        lda     fifoOffsets-1,x
         clc
         adc     #$87
         clc
@@ -244,6 +535,45 @@ blankCursor:
         lda     #$F1
         sta     PPUDATA
 @noTopCursor:
+        rts
+
+renderBlankScreen:
+        lda     #$00
+        sta     PPUCTRL
+        sta     PPUMASK
+        lda     activeMenu
+        sta     renderMode
+        jsr     blankOutNameTable
+        @vblankwait:
+        bit     PPUSTATUS
+        bpl     @vblankwait
+        rts
+
+renderBranchOnIndex:
+        asl
+        tax
+        lda     renderBranches,x
+        sta     tmp1
+        lda     renderBranches+1,x
+        sta     tmp2
+        jmp     (tmp1)
+
+renderBranches:
+        .addr   renderMainMenu
+        .addr   renderRamTestScreen
+        .addr   renderFifoScreen
+        .addr   renderBlankScreen
+
+nmi:    pha
+        txa
+        pha
+        tya
+        pha
+        inc     frameCounter
+        lda     #$01
+        sta     nmiHappened
+        lda     renderMode
+        jsr     renderBranchOnIndex
         lda     #$00
         sta     PPUSCROLL
         sta     PPUSCROLL
@@ -252,7 +582,6 @@ blankCursor:
         lda     #%00001110
         sta     PPUMASK
         jsr     readjoy
-
         pla
         tay
         pla
@@ -266,9 +595,21 @@ cursorHiBytes:
 cursorLoBytes:
         .byte   $A1,$21,$A1,$21
 
-topCursorOffsets:
+ramtestOffsets:
+        .byte   $00,$00,$00,$00,$02,$02,$04,$04
+fifoOffsets:
         .byte   $00,$00,$08,$08,$08,$08
 
+stringRamTest:
+        .byte   " RAM Read/Write",$00
+stringFifoTest:
+        .byte   " Everdrive FIFO Test",$00
+stringSpaceDollar:
+        .byte   " $",$00
+stringWrite:
+        .byte   " Write",$00
+stringRead:
+        .byte   " Read",$00
 stringSend:
         .byte   " Send $",$00
 stringCount:
@@ -310,7 +651,20 @@ twoDigitsToPPU:
 
 
 
+upperLimitTopInput:
+        .byte   $00,$08,$06
+pastUpperLimitTopInput:
+        .byte   $01,$09,$07
+inputBytesOffsets:
+        .byte   $00,$00,$08
+
+rowLimit:
+        .byte   $01,$02,$03
+pastRowLimit:
+        .byte   $02,$03,$04
+
 loop:
+        ldy     activeMenu
         lda     menuRow
         bne     @notTopRow
 
@@ -320,7 +674,7 @@ loop:
         beq     @leftNotPressed
         dec     menuColumn
         bpl     @leftNotPressed
-        lda     #$06
+        lda     upperLimitTopInput,y
         sta     menuColumn
 @leftNotPressed:
 
@@ -329,30 +683,32 @@ loop:
         beq     @rightNotPressed
         inc     menuColumn
         lda     menuColumn
-        cmp     #$07
+        cmp     pastUpperLimitTopInput,y
         bne     @rightNotPressed
         lda     #$00
         sta     menuColumn
 @rightNotPressed:
         lda     menuColumn
         beq     @notTopRow
-
-        ldx     menuColumn
+        lda     menuColumn
+        clc
+        adc     inputBytesOffsets,y
+        tax
         lda     newButtons
         and     #BUTTON_UP
         beq     @upNotPressedForDigit
-        inc     repeatedByteHi-1,x
-        lda     repeatedByteHi-1,x
+        inc     inputOffset-1,x
+        lda     inputOffset-1,x
         and     #$0F
-        sta     repeatedByteHi-1,x
+        sta     inputOffset-1,x
 @upNotPressedForDigit:
         lda     newButtons
         and     #BUTTON_DOWN
         beq     @downNotPressedForDigit
-        dec     repeatedByteHi-1,x
-        lda     repeatedByteHi-1,x
+        dec     inputOffset-1,x
+        lda     inputOffset-1,x
         and     #$0F
-        sta     repeatedByteHi-1,x
+        sta     inputOffset-1,x
 @downNotPressedForDigit:
 
         jmp     @skipUpDownRead
@@ -362,7 +718,7 @@ loop:
         beq     @upNotPressed
         dec     menuRow
         bpl     @upNotPressed
-        lda     #$03
+        lda     rowLimit,y
         sta     menuRow
 @upNotPressed:
         lda     newButtons
@@ -370,46 +726,33 @@ loop:
         beq     @downNotPressed
         inc     menuRow
         lda     menuRow
-        cmp     #$04
+        cmp     pastRowLimit,y
         bne     @downNotPressed
         lda     #$00
         sta     menuRow
 @downNotPressed:
 @skipUpDownRead:
-
-; move repeats
-        lda     repeatsHiHi
-        asl
-        asl
-        asl
-        asl
-        ora     repeatsHiLo
-        sta     repeats+1
-
-        lda     repeatsLoHi
-        asl
-        asl
-        asl
-        asl
-        ora     repeatsLoLo
-        sta     repeats
-
-
-; move repeated byte
-        lda     repeatedByteHi
-        asl
-        asl
-        asl
-        asl
-        ora     repeatedByteLo
-        sta     repeatedByte
+        jsr     moveNybblesToBytes
 
         lda     newButtons
         and     #BUTTON_A
         beq     @aNotPressed
+        ldy     activeMenu
         lda     menuRow
+        clc
+        adc     branchOffsets,y
         jsr     branchOnIndex
+        jmp     @finishLoop
 @aNotPressed:
+        lda     newButtons
+        and     #BUTTON_B
+        beq     @finishLoop
+        lda     activeMenu
+        beq     @finishLoop
+        jsr     switchToMainMenu
+@finishLoop:
+
+waitForNmi:
         lda     #$00
         sta     nmiHappened
 @waitForNmi:
@@ -417,7 +760,20 @@ loop:
         beq     @waitForNmi
         jmp     loop
 
+branchOffsets:
+        .byte   $00,(ramtestBranches-branches)/2,(fifoBranches-branches)/2
+
 branches:
+        ; main menu
+        .addr   switchToRamtest
+        .addr   switchToFifo
+        ; ramtest
+ramtestBranches:
+        .addr   noOperation
+        .addr   writeBytes
+        .addr   readBytes
+fifoBranches:
+        ; fifo
         .addr   sendRepeatedByte
         .addr   readStatusByte
         .addr   readFifoByte
@@ -431,6 +787,61 @@ branchOnIndex:
         lda     branches+1,x
         sta     tmp2
         jmp     (tmp1)
+
+blankOutNameTable:
+
+        lda     #$20
+        sta     PPUADDR
+        lda     #$00
+        sta     PPUADDR
+
+        ldx     #$00
+        lda     #$FF
+nametableGroup1Loop:
+        sta     PPUDATA
+        inx
+        bne     nametableGroup1Loop
+
+
+        lda     #$21
+        sta     PPUADDR
+        lda     #$00
+        sta     PPUADDR
+
+        ldx     #$00
+        lda     #$FF
+nametableGroup2Loop:
+        sta     PPUDATA
+        inx
+        bne     nametableGroup2Loop
+
+
+        lda     #$22
+        sta     PPUADDR
+        lda     #$00
+        sta     PPUADDR
+
+        ldx     #$00
+        lda     #$FF
+nametableGroup3Loop:
+        sta     PPUDATA
+        inx
+        bne     nametableGroup3Loop
+
+        lda     #$23
+        sta     PPUADDR
+        lda     #$00
+        sta     PPUADDR
+
+        ldx     #$C0
+        lda     #$FF
+nametableGroup4Loop:
+        sta     PPUDATA
+        dex
+        bne     nametableGroup4Loop
+
+        rts
+
 
 reset:
         ; from https://www.nesdev.org/wiki/Init_code
@@ -483,63 +894,13 @@ reset:
         bit     PPUSTATUS
         bpl     @vblankwait2
 
-
-        lda     #$20
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup1Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup1Loop
-
-
-        lda     #$21
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup2Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup2Loop
-
-
-        lda     #$22
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$00
-        lda     #$FF
-nametableGroup3Loop:
-        sta     PPUDATA
-        inx
-        bne     nametableGroup3Loop
-
-        lda     #$23
-        sta     PPUADDR
-        lda     #$00
-        sta     PPUADDR
-
-        ldx     #$C0
-        lda     #$FF
-nametableGroup4Loop:
-        sta     PPUDATA
-        dex
-        bne     nametableGroup4Loop
+        jsr     blankOutNameTable
 
         lda     #$3F
         sta     PPUADDR
         lda     #$00
         sta     PPUADDR
         ldx     #$00
-
 paletteLoop:
         lda     palette,x
         cmp     #$FF
