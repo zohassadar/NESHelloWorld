@@ -30,11 +30,11 @@ Main Menu:
 
 
 
-
  $00
 
-
 ```
+
+The counter displayed at the bottom is there to provide feedback that an action occurred.
 
 
 RAM Test Menu:
@@ -46,8 +46,8 @@ RAM Test Menu:
 
  Read
 
-00 00 00 00 00 00 00 00 
-00 00 00 00 
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
 
  $00
 
