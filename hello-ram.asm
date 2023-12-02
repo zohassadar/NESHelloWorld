@@ -20,11 +20,28 @@ offset: .res 2
 
 total: .res 2
 
+total2: .res 3
+
 totalFrames: .res 2
 
 tmpX: .res 1
 tmpY: .res 1
 tmpZ: .res 1
+
+
+maxRed: .res 1
+maxGreen: .res 1
+maxBlue: .res 1
+
+
+; The number to be multiplied is the “multiplicand”, 
+; and the number by which it is multiplied is the “multiplier”.
+
+multiplier: .res 1
+multiplicand: .res 2
+
+product: .res 2
+
 
 currentGameId: .res 1
 

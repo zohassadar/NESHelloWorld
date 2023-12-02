@@ -117,6 +117,25 @@ pullOutNumber:
         rts
 
 
+multiplyTwoNumbers:
+        lda   #$00
+        sta   product
+        sta   product+1
+@loop:
+        dec   multiplier
+        bmi   @ret
+        clc
+        lda   multiplicand
+        adc   product
+        sta   product
+        lda   multiplicand+1
+        adc   product+1
+        sta   product+1
+        jmp   @loop
+@ret:   rts
+
+
+
 findGameIdOrEnd:
         ldy     #$00
         lda     (offset),y
@@ -131,6 +150,10 @@ findGameIdOrEnd:
         jsr     pullOutNumber
         lda     pulledNumber
         sta     currentGameId
+        lda     #$00
+        sta     maxRed
+        sta     maxGreen
+        sta     maxBlue
         jsr     incrementOffset
         jsr     incrementOffset
         jmp     pullAndIdentifyNumber
@@ -166,9 +189,15 @@ pullAndIdentifyNumber:
         ldy     #redHop
         jsr     incrementY
         txa
+        cmp     maxRed
+        bcc     @checkRedLimit
+        sta     maxRed
+@checkRedLimit:
         cmp     #redLimit+1
         bcc     whatsNext
-        jmp     findGameIdOrEnd
+        lda     #$00
+        sta     currentGameId
+        jmp     whatsNext
 
 @checkBlue:
         cmp     #blueId
@@ -176,9 +205,15 @@ pullAndIdentifyNumber:
         ldy     #blueHop
         jsr     incrementY
         txa
+        cmp     maxBlue
+        bcc     @checkBlueLimit
+        sta     maxBlue
+@checkBlueLimit:
         cmp     #blueLimit+1
         bcc     whatsNext
-        jmp     findGameIdOrEnd
+        lda     #$00
+        sta     currentGameId
+        jmp     whatsNext
 
 @checkGreen:
         cmp     #greenId
@@ -188,10 +223,14 @@ pullAndIdentifyNumber:
         ldy     #greepHop
         jsr     incrementY
         txa
+        cmp     maxGreen
+        bcc     @checkGreenLimit
+        sta     maxGreen
+@checkGreenLimit:
         cmp     #greenLimit+1
         bcc     whatsNext
-        jmp     findGameIdOrEnd
-
+        lda     #$00
+        sta     currentGameId
 
 whatsNext:
         ldy     #$00
@@ -210,6 +249,9 @@ whatsNext:
 ; check end of game
         cmp     #newline
         bne     somethingWrong
+
+
+; part 1 add
         lda     currentGameId
         clc
         adc     total
@@ -217,6 +259,32 @@ whatsNext:
         lda     #$00
         adc     total+1
         sta     total+1
+; part 2 add
+        lda     maxRed
+        sta     multiplicand
+        lda     #$00
+        sta     multiplicand+1
+        lda     maxGreen
+        sta     multiplier
+        jsr     multiplyTwoNumbers
+        lda     product
+        sta     multiplicand
+        lda     product+1
+        sta     multiplicand+1
+        lda     maxBlue
+        sta     multiplier
+        jsr     multiplyTwoNumbers
+        clc
+        lda     product
+        adc     total2
+        sta     total2
+        lda     product+1
+        adc     total2+1
+        sta     total2+1
+        lda     #$00
+        adc     total2+2
+        sta     total2+2
+        
         jmp     findGameIdOrEnd
 
 
@@ -290,17 +358,19 @@ renderStuff:
         lda     total
         jsr     twoDigitsToPPU
 
-        ; lda     #$21
-        ; sta     PPUADDR
-        ; lda     #$C1
-        ; sta     PPUADDR
-        ; ldx     #<stringAnswer
-        ; ldy     #>stringAnswer
-        ; jsr     sendWordToPPU
-        ; lda     total+1
-        ; jsr     twoDigitsToPPU
-        ; lda     offset
-        ; jsr     twoDigitsToPPU
+        lda     #$21
+        sta     PPUADDR
+        lda     #$C1
+        sta     PPUADDR
+        ldx     #<stringAnswer
+        ldy     #>stringAnswer
+        jsr     sendWordToPPU
+        lda     total2+2
+        jsr     twoDigitsToPPU
+        lda     total2+1
+        jsr     twoDigitsToPPU
+        lda     total2
+        jsr     twoDigitsToPPU
 
         lda     #$22
         sta     PPUADDR
