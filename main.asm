@@ -25,291 +25,213 @@ BUTTON_DOWN :=  $4
 BUTTON_LEFT :=  $2
 BUTTON_RIGHT := $1
 
-FIFO_DATA :=    $40f0
-FIFO_STATUS :=  $40f1
+asciiOffset :=  $30
 
-; Functions
+newline :=      $0a
+semicolon :=    $3b
+colon   :=      $3a
+space   :=      $20
+comma   :=      $2c
 
-branches:
-        .addr   switchToRamtest
-        .addr   switchToFifo
-ramtestBranches:
-        .addr   noOperation
-        .addr   writeBytes
-        .addr   readBytes
-fifoBranches:
-        .addr   sendRepeatedByte
-        .addr   readStatusByte
-        .addr   readFifoByte
-        .addr   countBytesInQueue
+gameId  :=      $47
+gameHop :=      5
 
-branchOffsets:
-        .byte   $00,(ramtestBranches-branches)/2,(fifoBranches-branches)/2
+redId   :=      $72
+redHop  :=      3
 
-branchOnIndex:
-        ldy     activeMenu
-        lda     menuRow
-        clc
-        adc     branchOffsets,y
-        asl
-        tax
-        lda     branches,x
-        sta     tmp1
-        lda     branches+1,x
-        sta     tmp2
-        jmp     (tmp1)
+greenId :=      $67
+greepHop :=     5
 
-loop:
-        ldy     activeMenu
-        lda     menuRow
-        bne     @notTopRow
+blueId  :=      $62
+blueHop :=      4
 
-        lda     newButtons
-        and     #BUTTON_LEFT
-        beq     @leftNotPressed
-        dec     menuColumn
-        bpl     @leftNotPressed
-        lda     upperLimitTopInput,y
-        sta     menuColumn
-@leftNotPressed:
+redLimit :=     12
+greenLimit :=   13
+blueLimit :=    14
 
-        lda     newButtons
-        and     #BUTTON_RIGHT
-        beq     @rightNotPressed
-        inc     menuColumn
-        lda     menuColumn
-        cmp     pastUpperLimitTopInput,y
-        bne     @rightNotPressed
-        lda     #$00
-        sta     menuColumn
-@rightNotPressed:
-        lda     menuColumn
-        beq     @notTopRow
-        lda     menuColumn
-        clc
-        adc     inputBytesOffsets,y
-        tax
-        lda     newButtons
-        and     #BUTTON_UP
-        beq     @upNotPressedForDigit
-        inc     inputOffset-1,x
-        lda     inputOffset-1,x
-        and     #$0F
-        sta     inputOffset-1,x
-@upNotPressedForDigit:
-        lda     newButtons
-        and     #BUTTON_DOWN
-        beq     @downNotPressedForDigit
-        dec     inputOffset-1,x
-        lda     inputOffset-1,x
-        and     #$0F
-        sta     inputOffset-1,x
-@downNotPressedForDigit:
+oneDigit:
+        .addr   multBy1Table
 
-        jmp     @skipUpDownRead
-@notTopRow:
-        lda     newButtons
-        and     #BUTTON_UP
-        beq     @upNotPressed
-        dec     menuRow
-        bpl     @upNotPressed
-        lda     rowLimit,y
-        sta     menuRow
-@upNotPressed:
-        lda     newButtons
-        and     #BUTTON_DOWN
-        beq     @downNotPressed
-        inc     menuRow
-        lda     menuRow
-        cmp     pastRowLimit,y
-        bne     @downNotPressed
-        lda     #$00
-        sta     menuRow
-@downNotPressed:
-@skipUpDownRead:
-        jsr     moveNybblesToBytes
+twoDigit:
+        .addr   multBy10Table
+        .addr   multBy1Table
 
-        lda     newButtons
-        and     #BUTTON_A
-        beq     @aNotPressed
+threeDigit:
+        .addr   multBy100Table
+        .addr   multBy10Table
+        .addr   multBy1Table
 
-        jsr     branchOnIndex
-        jmp     @finishLoop
-@aNotPressed:
-        lda     newButtons
-        and     #BUTTON_B
-        beq     @finishLoop
-        lda     activeMenu
-        beq     @finishLoop
-        jsr     switchToMainMenu
-@finishLoop:
-        lda     #$00
-        sta     nmiHappened
-@waitForNmi:
-        lda     nmiHappened
-        beq     @waitForNmi
-        jmp     loop
+multBy100Table:
+        .byte   $00,$64
+multBy10Table:
+        .byte   $00,$0a,$14,$1e,$28,$32,$3c,$46,$50,$5a
+multBy1Table:
+        .byte   $00,$01,$02,$03,$04,$05,$06,$07,$08,$09
+
+digitTableHi:
+        .byte   >oneDigit,>twoDigit,>threeDigit
+digitTableLo:
+        .byte   <oneDigit,<twoDigit,<threeDigit
 
 
-upperLimitTopInput:
-        .byte   $00,$08,$06
-pastUpperLimitTopInput:
-        .byte   $01,$09,$07
-inputBytesOffsets:
-        .byte   $00,$00,$08
-
-rowLimit:
-        .byte   $01,$02,$03
-pastRowLimit:
-        .byte   $02,$03,$04
-
-
-; Switch menus
-
-switchToFifo:
-        lda     #$02
-        bne     storeAndZero
-switchToRamtest:
-        lda     #$01
-        bne     storeAndZero
-switchToMainMenu:
-        lda     #$00
-storeAndZero:
-        sta     activeMenu
-        inc     counter
-        lda     #$00
-        sta     menuColumn
-        sta     menuRow
-        lda     #$03
-        sta     renderMode
-        rts
-
-; Ram Test
-
-writeBytes:
-        lda     count
-        beq     noOperation
+pullOutNumber:
+        ldx     #$00
+        stx     pulledNumber
+@pullDigit:
         ldy     #$00
-@writeLoop:
-        lda     startingByte
-        sta     (startingAddress),y
-        inc     startingByte
-        iny
-        cpy     count
-        bne     @writeLoop
-        inc     counter
-noOperation:
-        rts
-
-readBytes:
-        ldy     #$00
-@readLoop:
-        lda     (startingAddress),y
-        sta     readBuffer,y
-        iny
-        cpy     #$10
-        bne     @readLoop
-        inc     counter
-        rts
-
-; Fifo Test
-
-sendRepeatedByte:
-        lda     repeats
-        bne     @notZero
-        lda     repeats+1
-        beq     @ret
-@notZero:
-        inc     counter
-        lda     #$2b            ; "+"
-        sta     FIFO_DATA
-        eor     #$ff
-        sta     FIFO_DATA
-        lda     #$22            ; CMD_USB_WR
-        sta     FIFO_DATA
-        eor     #$ff
-        sta     FIFO_DATA
-        lda     repeats         ; Length.  16 bit LE
-        sta     FIFO_DATA
-        lda     repeats+1
-        sta     FIFO_DATA
-        lda     repeatedByte
-        ldy     repeats+1
-        ldx     repeats
-        beq     @decrementY
-@sendByte:
-        sta     FIFO_DATA
+        lda     (offset),y
+        sec
+        sbc     #asciiOffset
+        cmp     #$A
+        bcs     @NaN
+        sta     pulledDigits,x
+        jsr     incrementOffset
+        inx
+        bpl     @pullDigit
+@NaN:
         dex
-        bne     @sendByte
-@decrementY:
-        dey
-        cpy     #$FF
-        bne     @sendByte
-@ret:   rts
+        lda     digitTableLo,x
+        sta     tmpX
+        lda     digitTableHi,x
+        sta     tmpX+1
 
-
-readStatusByte:
-        inc     counter
-        lda     FIFO_STATUS
-        sta     readStatus
-        rts
-
-readFifoByte:
-        inc     counter
-        lda     FIFO_DATA
-        sta     readFifo
-        rts
-
-countBytesInQueue:
-        inc     counter
-        lda     #$00
-        sta     queueCount
-        sta     queueCount+1
-@checkStatus:
-        lda     FIFO_STATUS
-        cmp     #$41
-        bne     @idle
-        lda     FIFO_DATA
-        inc     queueCount
-        bne     @checkStatus
-        inc     queueCount+1
-        jmp     @checkStatus
-@idle:
-        rts
-
-
-
-hiBytes:
-        .byte   startingAddressHiHi,startingAddressLoHi,startingByteHi,countHi,repeatsHiHi,repeatsLoHi,repeatedByteHi
-loBytes:
-        .byte   startingAddressHiLo,startingAddressLoLo,startingByteLo,countLo,repeatsHiLo,repeatsLoLo,repeatedByteLo
-targets:
-        .byte   startingAddress+1,startingAddress,startingByte,count,repeats+1,repeats,repeatedByte
-
-
-moveNybblesToBytes:
-        ldy     #$00
-
-@moveNybbles:
-        ldx     hiBytes,y
-        lda     tmp1,x
+@pullDigitLoop:
+        txa
         asl
-        asl
-        asl
-        asl
-
-        ldx     loBytes,y
-        ora     tmp1,x
-
-        ldx     targets,y
-        sta     tmp1,x
-
+        tay
+        lda     (tmpX),y
+        sta     tmp1
         iny
-        cpy     #(loBytes-hiBytes)
-        bne     @moveNybbles
-
+        lda     (tmpX),y
+        sta     tmp2
+        ldy     pulledDigits,x
+        lda     (tmp1),y
+        clc
+        adc     pulledNumber
+        sta     pulledNumber
+        dex
+        bmi     @ret
+        jmp     @pullDigitLoop
+@ret:
+        ldy     #$00
         rts
 
+
+findGameIdOrEnd:
+        ldy     #$00
+        lda     (offset),y
+        bne     @notEnd
+        inc     found
+        jmp     endOfLoop
+@notEnd:
+        cmp     #gameId
+        bne     @notGameId
+        ldy     #gameHop
+        jsr     incrementY
+        jsr     pullOutNumber
+        lda     pulledNumber
+        sta     currentGameId
+        jsr     incrementOffset
+        jsr     incrementOffset
+        jmp     pullAndIdentifyNumber
+@notGameId:
+        jsr     incrementOffset
+        jmp     findGameIdOrEnd
+
+
+loopInit:
+        lda     #<data
+        sta     offset
+        lda     #>data
+        sta     offset+1
+        jmp     findGameIdOrEnd
+
+incrementY:
+        jsr     incrementOffset
+        dey
+        bne     incrementY
+        rts
+
+
+pullAndIdentifyNumber:
+        jsr     pullOutNumber
+        jsr     incrementOffset
+        ldx     pulledNumber
+        ldy     #$00
+        lda     (offset),y
+
+;checkRed
+        cmp     #redId
+        bne     @checkBlue
+        ldy     #redHop
+        jsr     incrementY
+        txa
+        cmp     #redLimit+1
+        bcc     whatsNext
+        jmp     findGameIdOrEnd
+
+@checkBlue:
+        cmp     #blueId
+        bne     @checkGreen
+        ldy     #blueHop
+        jsr     incrementY
+        txa
+        cmp     #blueLimit+1
+        bcc     whatsNext
+        jmp     findGameIdOrEnd
+
+@checkGreen:
+        cmp     #greenId
+        beq     @green
+        jmp     somethingWrong
+@green:
+        ldy     #greepHop
+        jsr     incrementY
+        txa
+        cmp     #greenLimit+1
+        bcc     whatsNext
+        jmp     findGameIdOrEnd
+
+
+whatsNext:
+        ldy     #$00
+        lda     (offset),y
+        cmp     #comma
+        bne     @checkSemiColon
+@incrementAndJump:
+        jsr     incrementOffset
+        jsr     incrementOffset
+        jmp     pullAndIdentifyNumber
+
+@checkSemiColon:
+        cmp     #semicolon
+        beq     @incrementAndJump
+
+; check end of game
+        cmp     #newline
+        bne     somethingWrong
+        lda     currentGameId
+        clc
+        adc     total
+        sta     total
+        lda     #$00
+        adc     total+1
+        sta     total+1
+        jmp     findGameIdOrEnd
+
+
+
+somethingWrong:
+        inc     errorFlag
+endOfLoop:
+        jmp     endOfLoop
+
+
+incrementOffset:
+        inc     offset
+        bne     @ret
+        inc     offset+1
+@ret:   rts
 
 ; NMI Functions
 
@@ -321,8 +243,7 @@ nmi:    pha
         inc     frameCounter
         lda     #$01
         sta     nmiHappened
-        lda     renderMode
-        jsr     renderBranchOnIndex
+        jsr     renderStuff
         lda     #$00
         sta     PPUSCROLL
         sta     PPUSCROLL
@@ -331,6 +252,12 @@ nmi:    pha
         lda     #%00001110
         sta     PPUMASK
         jsr     readjoy
+        lda     found
+        bne     @stopCounting
+        inc     totalFrames
+        bne     @stopCounting
+        inc     totalFrames+1
+@stopCounting:
         pla
         tay
         pla
@@ -338,327 +265,65 @@ nmi:    pha
         pla
 irq:    rti
 
-renderBranches:
-        .addr   renderMainMenu
-        .addr   renderRamTestScreen
-        .addr   renderFifoScreen
-        .addr   renderBlankScreen
-
-renderBranchOnIndex:
-        lda     renderMode
-        asl
-        tax
-        lda     renderBranches,x
-        sta     tmp1
-        lda     renderBranches+1,x
-        sta     tmp2
-        jmp     (tmp1)
 
 
-renderMainMenu:
-
-; ram test
+renderStuff:
+        lda     errorFlag
+        bne     @errorCondition
         lda     #$20
         sta     PPUADDR
         lda     #$A1
         sta     PPUADDR
-        ldx     #<stringRamTest
-        ldy     #>stringRamTest
+        ldx     #<stringHello
+        ldy     #>stringHello
         jsr     sendWordToPPU
 
-; fifo test
         lda     #$21
         sta     PPUADDR
-        lda     #$21
+        lda     #$A1
         sta     PPUADDR
-        ldx     #<stringFifoTest
-        ldy     #>stringFifoTest
+        ldx     #<stringAnswer
+        ldy     #>stringAnswer
         jsr     sendWordToPPU
+        lda     total+1
+        jsr     twoDigitsToPPU
+        lda     total
+        jsr     twoDigitsToPPU
 
-; Counter
+        ; lda     #$21
+        ; sta     PPUADDR
+        ; lda     #$C1
+        ; sta     PPUADDR
+        ; ldx     #<stringAnswer
+        ; ldy     #>stringAnswer
+        ; jsr     sendWordToPPU
+        ; lda     total+1
+        ; jsr     twoDigitsToPPU
+        ; lda     offset
+        ; jsr     twoDigitsToPPU
+
         lda     #$22
         sta     PPUADDR
         lda     #$A1
         sta     PPUADDR
-        ldx     #<stringSpaceDollar
-        ldy     #>stringSpaceDollar
+        ldx     #<stringTotalFrames
+        ldy     #>stringTotalFrames
         jsr     sendWordToPPU
-        lda     counter
+        lda     totalFrames+1
         jsr     twoDigitsToPPU
-
-; plant cursor
-        ldx     menuRow
-        lda     cursorHiBytes,x
-        sta     PPUADDR
-        lda     cursorLoBytes,x
-        sta     PPUADDR
-        lda     #$F0
-        sta     PPUDATA
-
-        rts
+        lda     totalFrames
+        jmp     twoDigitsToPPU
 
 
-renderRamTestScreen:
-        lda     #$20
-        sta     PPUADDR
-        lda     #$83
-        sta     PPUADDR
-        ldx     #$C
-        lda     #$FF
-@blankCursor:
-        sta     PPUDATA
-        dex
-        bpl     @blankCursor
-
-
-        lda     #$20
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-
-        ldx     #<stringSpaceDollar
-        ldy     #>stringSpaceDollar
-        jsr     sendWordToPPU
-        lda     startingAddressHiHi
-        sta     PPUDATA
-        lda     startingAddressHiLo
-        sta     PPUDATA
-        lda     startingAddressLoHi
-        sta     PPUDATA
-        lda     startingAddressLoLo
-        sta     PPUDATA
-
-        ldx     #<stringSpaceDollar
-        ldy     #>stringSpaceDollar
-        jsr     sendWordToPPU
-
-        lda     startingByteHi
-        sta     PPUDATA
-        lda     startingByteLo
-        sta     PPUDATA
-
-        ldx     #<stringSpaceDollar
-        ldy     #>stringSpaceDollar
-        jsr     sendWordToPPU
-
-        lda     countHi
-        sta     PPUDATA
-        lda     countLo
-        sta     PPUDATA
-
-
-; write row
+@errorCondition:
         lda     #$21
         sta     PPUADDR
-        lda     #$21
+        lda     #$C1
         sta     PPUADDR
-        ldx     #<stringWrite
-        ldy     #>stringWrite
-        jsr     sendWordToPPU
+        ldx     #<stringSomethingWrong
+        ldy     #>stringSomethingWrong
+        jmp     sendWordToPPU
 
-
-; read row
-        lda     #$21
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-        ldx     #<stringRead
-        ldy     #>stringRead
-        jsr     sendWordToPPU
-
-
-; read results top row
-        lda     #$22
-        sta     PPUADDR
-        lda     #$21
-        sta     PPUADDR
-        ldx     #0
-writeTopRow:
-        lda     readBuffer,x
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        inx
-        cpx     #$08
-        bne     writeTopRow
-
-
-; read results bottom row
-        lda     #$22
-        sta     PPUADDR
-        lda     #$41
-        sta     PPUADDR
-        ldx     #0
-writeBottomRow:
-        lda     readBuffer+8,x
-        jsr     twoDigitsToPPU
-        lda     #$FF
-        sta     PPUDATA
-        inx
-        cpx     #$08
-        bne     writeBottomRow
-
-
-; Counter
-        lda     #$22
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-        ldx     #<stringSpaceDollar
-        ldy     #>stringSpaceDollar
-        jsr     sendWordToPPU
-        lda     counter
-        jsr     twoDigitsToPPU
-
-
-; plant cursor
-        lda     menuColumn
-        bne     @checkTop
-        ldx     menuRow
-        lda     cursorHiBytes,x
-        sta     PPUADDR
-        lda     cursorLoBytes,x
-        sta     PPUADDR
-        lda     #$F0
-        sta     PPUDATA
-
-
-@checkTop:
-        lda     menuColumn
-        beq     @noTopCursor
-
-; top cursor
-        lda     #$20
-        sta     PPUADDR
-        ldx     menuColumn
-        lda     ramtestOffsets-1,x
-        clc
-        adc     #$82
-        clc
-        adc     menuColumn
-        sta     PPUADDR
-        lda     #$F1
-        sta     PPUDATA
-@noTopCursor:
-        rts
-
-renderFifoScreen:
-        lda     #$20
-        sta     PPUADDR
-        lda     #$88
-        sta     PPUADDR
-        ldx     #$F
-        lda     #$FF
-blankCursor:
-        sta     PPUDATA
-        dex
-        bpl     blankCursor
-
-        lda     #$20
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-
-        ldx     #<stringSend
-        ldy     #>stringSend
-        jsr     sendWordToPPU
-        lda     repeatedByteHi
-        sta     PPUDATA
-        lda     repeatedByteLo
-        sta     PPUDATA
-
-        ldx     #<stringCount
-        ldy     #>stringCount
-        jsr     sendWordToPPU
-
-        lda     repeatsHiHi
-        sta     PPUDATA
-        lda     repeatsHiLo
-        sta     PPUDATA
-        lda     repeatsLoHi
-        sta     PPUDATA
-        lda     repeatsLoLo
-        sta     PPUDATA
-
-; status row
-        lda     #$21
-        sta     PPUADDR
-        lda     #$21
-        sta     PPUADDR
-        ldx     #<stringReadStatus
-        ldy     #>stringReadStatus
-        jsr     sendWordToPPU
-        lda     readStatus
-        jsr     twoDigitsToPPU
-
-; fifo row
-        lda     #$21
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-        ldx     #<stringReadFifo
-        ldy     #>stringReadFifo
-        jsr     sendWordToPPU
-        lda     readFifo
-        jsr     twoDigitsToPPU
-
-; count row
-        lda     #$22
-        sta     PPUADDR
-        lda     #$21
-        sta     PPUADDR
-        ldx     #<stringCountQueue
-        ldy     #>stringCountQueue
-        jsr     sendWordToPPU
-        lda     queueCount+1
-        jsr     twoDigitsToPPU
-        lda     queueCount
-        jsr     twoDigitsToPPU
-
-; counter row
-        lda     #$22
-        sta     PPUADDR
-        lda     #$A1
-        sta     PPUADDR
-        ldx     #<stringCounter
-        ldy     #>stringCounter
-        jsr     sendWordToPPU
-        lda     counter
-        jsr     twoDigitsToPPU
-
-; plant cursor
-        ldx     menuRow
-        lda     cursorHiBytes,x
-        sta     PPUADDR
-        lda     cursorLoBytes,x
-        sta     PPUADDR
-        lda     #$F0
-        sta     PPUDATA
-
-        lda     menuColumn
-        beq     @noTopCursor
-
-; top cursor
-        lda     #$20
-        sta     PPUADDR
-        ldx     menuColumn
-        lda     fifoOffsets-1,x
-        clc
-        adc     #$87
-        clc
-        adc     menuColumn
-        sta     PPUADDR
-        lda     #$F1
-        sta     PPUDATA
-@noTopCursor:
-        rts
-
-renderBlankScreen:
-        lda     #$00
-        sta     PPUCTRL
-        sta     PPUMASK
-        lda     activeMenu
-        sta     renderMode
 blankOutNameTable:
         ldx     #$C0
         ldy     #$04
@@ -713,29 +378,16 @@ ramtestOffsets:
 fifoOffsets:
         .byte   $00,$00,$08,$08,$08,$08
 
-stringRamTest:
-        .byte   " RAM Read/Write",$00
-stringFifoTest:
-        .byte   " Everdrive FIFO Test",$00
-stringSpaceDollar:
-        .byte   " $",$00
-stringWrite:
-        .byte   " Write",$00
-stringRead:
-        .byte   " Read",$00
-stringSend:
-        .byte   " Send $",$00
-stringCount:
-        .byte   " count $",$00
-stringReadStatus:
-        .byte   " Read $40f1=$",$00
-stringReadFifo:
-        .byte   " Read $40f0=$",$00
-stringCountQueue:
-        .byte   " len(queue)=$",$00
-stringCounter:
-        .byte   " $",$00
 
+
+stringHello:
+        .byte   " Hello there",$00
+stringAnswer:
+        .byte   " Result: $",$00
+stringTotalFrames:
+        .byte   " Frame Count: $",$00
+stringSomethingWrong:
+        .byte   " Something Wrong",$00
 
 
 ; from https://www.nesdev.org/wiki/Controller_reading_code
@@ -832,7 +484,7 @@ paletteLoop:
         sta     PPUCTRL
         lda     #%00011110
         sta     PPUMASK
-        jmp     loop
+        jmp     loopInit
 
 palette:
         .byte   $0F,$30,$30,$30
@@ -844,6 +496,12 @@ palette:
         .byte   $0F,$30,$30,$30
         .byte   $0F,$30,$30,$30
 endpalette:
+
+
+
+data:
+        .incbin "day02.input"
+.byte   $00
 
 .segment "VECTORS": absolute
 

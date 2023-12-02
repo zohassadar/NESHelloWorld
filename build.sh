@@ -32,17 +32,3 @@ ca65 ${compile_flags[*]} -l hello.lst -g main.asm -o main.o
 # link object files
 
 ld65 -m hello.map -Ln hello.lbl --dbgfile hello.dbg -o hello.nes -C hello.cfg main.o header.o
-
-
-length=$(wc -c hello.nes | cut -d ' ' -f 1)
-sha1sum=$(sha1sum hello.nes | cut -d ' ' -f 1)
-blank=zeroes.nes
-patch=fifo_testrom.bps
-head -c $length </dev/zero >$blank
-flips --create $blank hello.nes $patch
-python convert_patch.py $patch $length $sha1sum > fifo_testrom.py
-cat fifo_testrom.py
-rm $patch
-rm $blank
-
-
