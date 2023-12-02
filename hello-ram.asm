@@ -10,6 +10,8 @@ heldButtons: .res 1             ; $0006
 nmiHappened: .res 1
 renderMode: .res 1 
 
+totalFrames: .res 2
+
 offset: .res 2
 
 total: .res 2

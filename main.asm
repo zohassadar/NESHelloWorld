@@ -211,6 +211,12 @@ nmi:    pha
         lda     #%00001110
         sta     PPUMASK
         jsr     readjoy
+        lda     found
+        bne     @stopCounting
+        inc     totalFrames
+        bne     @stopCounting
+        inc     totalFrames+1
+@stopCounting:
         pla
         tay
         pla
@@ -257,12 +263,12 @@ renderStuff:
         sta     PPUADDR
         lda     #$A1
         sta     PPUADDR
-        ldx     #<stringPointer
-        ldy     #>stringPointer
+        ldx     #<stringTotalFrames
+        ldy     #>stringTotalFrames
         jsr     sendWordToPPU
-        lda     offset+1
+        lda     totalFrames+1
         jsr     twoDigitsToPPU
-        lda     offset
+        lda     totalFrames
         jsr     twoDigitsToPPU
         rts
 
@@ -329,8 +335,8 @@ stringHello:
         .byte   " Hello there",$00
 stringAnswer:
         .byte   " Result: $",$00
-stringPointer:
-        .byte   " Ptr: $",$00
+stringTotalFrames:
+        .byte   " Frame Count: $",$00
 
 
 ; from https://www.nesdev.org/wiki/Controller_reading_code
