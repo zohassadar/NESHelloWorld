@@ -10,25 +10,33 @@ newButtons: .res 1              ; $0005
 heldButtons: .res 1             ; $0006
 
 nmiHappened: .res 1
-renderMode: .res 1 
+renderMode: .res 1
 
 totalFrames: .res 2
 
-offset: .res 2
+offset: .res    2
 
-total: .res 2
-total2: .res 2
+total:  .res    2
+total2: .res    2
 
 firstDigit: .res 1
 currentDigit: .res 1
 
-found: .res 1
+found:  .res    1
 
 digitSpelled: .res 1
 
-tmpX: .res 1
-tmpY: .res 1
-tmpZ: .res 1
+tmpX:   .res    1
+tmpY:   .res    1
+tmpZ:   .res    1
+
+result1DecimalOut: .res 8
+result2DecimalOut: .res 8
+
+decBuffer: .res 3
+decResult: .res 3
+
+generalCounter: .res 1
 
 
 
@@ -36,15 +44,15 @@ tmpZ: .res 1
 
 .bss
 stack:
-    .res    $100
+        .res    $100
 
 unused:
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
 
 
 .segment "PRG"
@@ -73,6 +81,84 @@ BUTTON_RIGHT := $1
 
 newline :=      $0a
 asciiOffset :=  $30
+
+compareBytes:
+bytesFor10m:
+        .byte   $80,$96,$98
+bytesFor1m:
+        .byte   $40,$42,$0f
+bytesFor100k:
+        .byte   $a0,$86,$01
+bytesFor10k:
+        .byte   $10,$27,$00
+bytesFor1k:
+        .byte   $e8,$03,$00
+bytesFor100:
+        .byte   $64,$00,$00
+bytesFor10:
+        .byte   $0a,$00,$00
+bytesFor1:
+        .byte   $01,$00,$00
+
+bytesForCompare:
+        .addr   bytesFor10m
+        .addr   bytesFor1m
+        .addr   bytesFor100k
+        .addr   bytesFor10k
+        .addr   bytesFor1k
+        .addr   bytesFor100
+        .addr   bytesFor10
+        .addr   bytesFor1
+
+
+
+convert3BytesToDecimal:
+; 3 bytes need to be in decBuffer. x is offset to result
+        lda     #$00            ; count up, stop at 8
+        sta     generalCounter
+
+@getMod:
+        lda     generalCounter
+        asl
+        clc
+        adc     generalCounter
+        tay                     ; y = generalCounter * 3
+@doSubtraction:
+        sec
+        lda     decBuffer
+        sbc     compareBytes,y
+        sta     decResult
+
+        lda     decBuffer+1
+        sbc     compareBytes+1,y
+        sta     decResult+1
+
+        lda     decBuffer+2
+        sbc     compareBytes+2,y
+        sta     decResult+2
+
+        bcc     @nextDigit
+
+        ; cannot inc (tmpX),y
+        inc     tmp1,x
+
+        lda     decResult
+        sta     decBuffer
+        lda     decResult+1
+        sta     decBuffer+1
+        lda     decResult+2
+        sta     decBuffer+2
+        jmp     @doSubtraction
+
+@nextDigit:
+        inx
+        inc     generalCounter
+        lda     generalCounter
+        cmp     #$08
+        bne     @getMod
+        rts
+
+
 
 loop:
         lda     found
@@ -121,6 +207,16 @@ loop:
 
 
 part2Init:
+
+        lda     total
+        sta     decBuffer
+        lda     total+1
+        sta     decBuffer+1
+        lda     #$00
+        sta     decBuffer+2
+        ldx     #result1DecimalOut
+        jsr     convert3BytesToDecimal
+
         lda     #<data
         sta     offset
         lda     #>data
@@ -138,6 +234,17 @@ part2Loop:
 
         lda     (offset),y
         bne     @notFound
+
+        lda     total2
+        sta     decBuffer
+        lda     total2+1
+        sta     decBuffer+1
+        lda     #$00
+        sta     decBuffer+2
+        ldx     #result2DecimalOut
+        jsr     convert3BytesToDecimal
+
+
         inc     found
         bne     @addToCurrent
 @notFound:
@@ -183,64 +290,64 @@ part2Loop:
 
 digits:
 digit1:
-        .byte "one",$00,$01
+        .byte   "one",$00,$01
 digit2:
-        .byte "two",$00,$02
+        .byte   "two",$00,$02
 digit3:
-        .byte "three",$00,$03
+        .byte   "three",$00,$03
 digit4:
-        .byte "four",$00,$04
+        .byte   "four",$00,$04
 digit5:
-        .byte "five",$00,$05
+        .byte   "five",$00,$05
 digit6:
-        .byte "six",$00,$06
+        .byte   "six",$00,$06
 digit7:
-        .byte "seven",$00,$07
+        .byte   "seven",$00,$07
 digit8:
-        .byte "eight",$00,$08
+        .byte   "eight",$00,$08
 digit9:
-        .byte "nine",$00,$09
-.byte $FF
+        .byte   "nine",$00,$09
+.byte   $FF
 
 
 checkIfSpelled:
-        lda  #$00
-        sta  digitSpelled
+        lda     #$00
+        sta     digitSpelled
 
-        ldx #$00
-        ldy #$00
+        ldx     #$00
+        ldy     #$00
 @checkDigit:
-        lda digits,x
-        beq @reset
-        bmi @notFound
-        cmp (offset),y
-        beq @equal
-        inc digitSpelled
+        lda     digits,x
+        beq     @reset
+        bmi     @notFound
+        cmp     (offset),y
+        beq     @equal
+        inc     digitSpelled
 @findZero:
         inx
-        lda digits,x
-        bne @findZero
-        beq @reset
+        lda     digits,x
+        bne     @findZero
+        beq     @reset
 @equal:
         inx
         iny
-        bne @checkDigit
+        bne     @checkDigit
 @reset:
-        lda digitSpelled
-        beq @foundNumber
+        lda     digitSpelled
+        beq     @foundNumber
         inx
         inx
-        ldy #$00
-        sty digitSpelled
-        beq @checkDigit
+        ldy     #$00
+        sty     digitSpelled
+        beq     @checkDigit
 @foundNumber:
-        lda digits+1,x
+        lda     digits+1,x
         clc
         rts
 @notFound:
         sec
         rts
-        
+
 
 
 ; NMI Functions
@@ -288,7 +395,7 @@ renderStuff:
 
         lda     #$21
         sta     PPUADDR
-        lda     #$A1
+        lda     #$61
         sta     PPUADDR
         ldx     #<stringAnswer
         ldy     #>stringAnswer
@@ -297,6 +404,30 @@ renderStuff:
         jsr     twoDigitsToPPU
         lda     total
         jsr     twoDigitsToPPU
+
+        lda     #$21
+        sta     PPUADDR
+        lda     #$81
+        sta     PPUADDR
+        ldx     #<stringDecimal
+        ldy     #>stringDecimal
+        jsr     sendWordToPPU
+        lda     result1DecimalOut
+        sta     PPUDATA
+        lda     result1DecimalOut+1
+        sta     PPUDATA
+        lda     result1DecimalOut+2
+        sta     PPUDATA
+        lda     result1DecimalOut+3
+        sta     PPUDATA
+        lda     result1DecimalOut+4
+        sta     PPUDATA
+        lda     result1DecimalOut+5
+        sta     PPUDATA
+        lda     result1DecimalOut+6
+        sta     PPUDATA
+        lda     result1DecimalOut+7
+        sta     PPUDATA
 
         lda     #$21
         sta     PPUADDR
@@ -309,6 +440,31 @@ renderStuff:
         jsr     twoDigitsToPPU
         lda     total2
         jsr     twoDigitsToPPU
+
+        lda     #$21
+        sta     PPUADDR
+        lda     #$E1
+        sta     PPUADDR
+        ldx     #<stringDecimal
+        ldy     #>stringDecimal
+        jsr     sendWordToPPU
+        lda     result2DecimalOut
+        sta     PPUDATA
+        lda     result2DecimalOut+1
+        sta     PPUDATA
+        lda     result2DecimalOut+2
+        sta     PPUDATA
+        lda     result2DecimalOut+3
+        sta     PPUDATA
+        lda     result2DecimalOut+4
+        sta     PPUDATA
+        lda     result2DecimalOut+5
+        sta     PPUDATA
+        lda     result2DecimalOut+6
+        sta     PPUDATA
+        lda     result2DecimalOut+7
+        sta     PPUDATA
+
 
         lda     #$22
         sta     PPUADDR
@@ -388,6 +544,8 @@ stringAnswer:
         .byte   " Result: $",$00
 stringTotalFrames:
         .byte   " Frame Count: $",$00
+stringDecimal:
+        .byte   "    ",$00
 
 
 ; from https://www.nesdev.org/wiki/Controller_reading_code
