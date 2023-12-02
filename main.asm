@@ -170,6 +170,11 @@ checkIfSpelled:
         cmp (offset),y
         beq @equal
         inc digitSpelled
+@findZero:
+        inx
+        lda digits,x
+        bne @findZero
+        beq @reset
 @equal:
         inx
         iny
