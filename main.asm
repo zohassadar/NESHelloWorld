@@ -30,7 +30,7 @@ asciiOffset :=  $30
 
 loop:
         lda     found
-        bne     @loop
+        bne     part2Init
 
         lda     (offset),y
         bne     @notFound
@@ -71,6 +71,125 @@ loop:
         inc     offset+1
 @loop:
         jmp     loop
+
+
+
+part2Init:
+        lda     #<data
+        sta     offset
+        lda     #>data
+        sta     offset+1
+        ldy     #$00
+        sty     total2
+        sty     total2+1
+        sty     firstDigit
+        sty     currentDigit
+        sty     found
+part2Loop:
+        ldy     #$00
+        lda     found
+        bne     @loop
+
+        lda     (offset),y
+        bne     @notFound
+        inc     found
+        bne     @addToCurrent
+@notFound:
+        cmp     #newline
+        bne     @notNewline
+@addToCurrent:
+        ldx     firstDigit
+        lda     multBy10Table,x
+        clc
+        adc     currentDigit
+        adc     total2
+        sta     total2
+        lda     #$00
+        adc     total2+1
+        sta     total2+1
+        lda     #$00
+        sta     firstDigit
+        sta     currentDigit
+        jmp     @dontCheckAgain
+
+@notNewline:
+        sec
+        sbc     #asciiOffset
+        bmi     @checkIfSpelled
+        cmp     #$0A
+        bcs     @checkIfSpelled
+@storeFoundDigit:
+        ldx     firstDigit
+        bne     @notFirstDigit
+        sta     firstDigit
+@notFirstDigit:
+        sta     currentDigit
+        jmp     @dontCheckAgain
+@checkIfSpelled:
+        jsr     checkIfSpelled
+        bcc     @storeFoundDigit
+@dontCheckAgain:
+        inc     offset
+        bne     @loop
+        inc     offset+1
+@loop:
+        jmp     part2Loop
+
+digits:
+digit1:
+        .byte "one",$00,$01
+digit2:
+        .byte "two",$00,$02
+digit3:
+        .byte "three",$00,$03
+digit4:
+        .byte "four",$00,$04
+digit5:
+        .byte "five",$00,$05
+digit6:
+        .byte "six",$00,$06
+digit7:
+        .byte "seven",$00,$07
+digit8:
+        .byte "eight",$00,$08
+digit9:
+        .byte "nine",$00,$09
+.byte $FF
+
+
+checkIfSpelled:
+        lda  #$00
+        sta  digitSpelled
+
+        ldx #$00
+        ldy #$00
+@checkDigit:
+        lda digits,x
+        beq @reset
+        bmi @notFound
+        cmp (offset),y
+        beq @equal
+        inc digitSpelled
+@equal:
+        inx
+        iny
+        bne @checkDigit
+@reset:
+        lda digitSpelled
+        beq @foundNumber
+        inx
+        inx
+        ldy #$00
+        sty digitSpelled
+        beq @checkDigit
+@foundNumber:
+        lda digits+1,x
+        clc
+        rts
+@notFound:
+        sec
+        rts
+        
 
 
 ; NMI Functions
@@ -120,6 +239,18 @@ renderStuff:
         lda     total+1
         jsr     twoDigitsToPPU
         lda     total
+        jsr     twoDigitsToPPU
+
+        lda     #$21
+        sta     PPUADDR
+        lda     #$C1
+        sta     PPUADDR
+        ldx     #<stringAnswer
+        ldy     #>stringAnswer
+        jsr     sendWordToPPU
+        lda     total2+1
+        jsr     twoDigitsToPPU
+        lda     total2
         jsr     twoDigitsToPPU
 
         lda     #$22

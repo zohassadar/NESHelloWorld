@@ -13,11 +13,14 @@ renderMode: .res 1
 offset: .res 2
 
 total: .res 2
+total2: .res 2
 
 firstDigit: .res 1
 currentDigit: .res 1
 
 found: .res 1
+
+digitSpelled: .res 1
 
 tmpX: .res 1
 tmpY: .res 1
