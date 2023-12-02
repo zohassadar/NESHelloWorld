@@ -42,6 +42,7 @@ multiplicand: .res 2
 
 product: .res 2
 
+wordTemp: .res 2
 
 currentGameId: .res 1
 

@@ -414,11 +414,11 @@ waitForVBlank:
         rts
 
 sendWordToPPU:
-        stx     tmp1
-        sty     tmp2
+        stx     wordTemp
+        sty     wordTemp+1
         ldy     #$00
 wordLoop:
-        lda     (tmp1),y
+        lda     (wordTemp),y
         beq     wordLoopEnd
         sta     PPUDATA
         iny
