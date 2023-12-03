@@ -12,31 +12,32 @@ heldButtons: .res 1             ; $0006
 pulledNumber: .res 2
 
 pulledDigits: .res 3
-.res 4
+.res    4
 
 nmiHappened: .res 1
-renderMode: .res 1 
+renderMode: .res 1
 
-found: .res 1
+found:  .res    1
 
-offset: .res 2
+offset: .res    2
+offsetBackup: .res 2
 
-total: .res 2
-total2: .res 3
+total:  .res    2
+total2: .res    3
 
 totalFrames: .res 2
 
-tmpQ: .res 1
-tmpR: .res 1
+tmpQ:   .res    1
+tmpR:   .res    1
 
 
-tmpX: .res 1
-tmpY: .res 1
+tmpX:   .res    1
+tmpY:   .res    1
 
 
-tmpZ: .res 1
+tmpZ:   .res    1
 
-wordTemp: .res 2
+wordTemp: .res  2
 
 errorFlag: .res 1
 
@@ -51,8 +52,7 @@ generalCounter: .res 1
 ;  ------------------------------
 ;  ------------------------------
 
-
-
+shapeWidth: .res 1
 
 
 ;  ------------------------------
@@ -62,15 +62,15 @@ generalCounter: .res 1
 
 .bss
 stack:
-    .res    $100
+        .res    $100
 
 unused:
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
-    .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
+        .res    $100
 
 .segment "PRG"
 
@@ -87,34 +87,34 @@ DMC_FREQ :=     $4010
 JOYPAD1 :=      $4016
 JOY2_APUFC :=   $4017
 
-BUTTON_A =     $80
-BUTTON_B =     $40
-BUTTON_SELECT = $20
-BUTTON_START = $10
-BUTTON_UP =    $8
-BUTTON_DOWN =  $4
-BUTTON_LEFT =  $2
-BUTTON_RIGHT = $1
+BUTTON_A        = $80
+BUTTON_B        = $40
+BUTTON_SELECT   = $20
+BUTTON_START    = $10
+BUTTON_UP       = $8
+BUTTON_DOWN     = $4
+BUTTON_LEFT     = $2
+BUTTON_RIGHT    = $1
 
-asciiOffset =  $30
+asciiOffset     = $30
 
 
 
-EOF = $00
+EOF             = $00
 
-newline =      $0a
+newline         = $0a
 
-symOctothorpe = $23 ; #
-symDollar = $24 ; $
-symPercent = $25 ; %
-symAmpersand = $26 ; &
-symAsterisk = $2a ; *
-symPlus = $2b ; +
-symHyphen = $2d ; -
+symOctothorpe   = $23           ; #
+symDollar       = $24           ; $
+symPercent      = $25           ; %
+symAmpersand    = $26           ; &
+symAsterisk     = $2a           ; *
+symPlus         = $2b           ; +
+symHyphen       = $2d           ; -
 
-symDot = $2e ; .
+symDot          = $2e           ; .
 
-symSlash = $2f ; /
+symSlash        = $2f           ; /
 
 
 ; $30 ; '0'
@@ -128,8 +128,8 @@ symSlash = $2f ; /
 ; $38 ; '8'
 ; $39 ; '9'
 
-symEqual = $3d ; =
-symAt  = $40 ; @
+symEqual        = $3d           ; =
+symAt           = $40           ; @
 
 
 compareBytes:
@@ -212,21 +212,13 @@ digitTableHi:
 digitTableLo:
         .byte   <oneDigit,<twoDigit,<threeDigit
 
-oneDigit:
-        .addr   multBy1TableLo
-        .addr   multBy1TableHi
-
-twoDigit:
-        .addr   multBy10TableLo
-        .addr   multBy10TableHi
-        .addr   multBy1TableLo
-        .addr   multBy1TableHi
-
 threeDigit:
         .addr   multBy100TableLo
         .addr   multBy100TableHi
+twoDigit:
         .addr   multBy10TableLo
         .addr   multBy10TableHi
+oneDigit:
         .addr   multBy1TableLo
         .addr   multBy1TableHi
 
@@ -242,8 +234,8 @@ multBy10TableHi:
 multBy1TableHi:
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-loDigitLoc = tmp1
-hiDigitLoc = tmpQ
+loDigitLoc      = tmp1
+hiDigitLoc      = tmpQ
 
 isItANumber:
         ; carry clear == number
@@ -280,7 +272,7 @@ pullOutNumber:
 @pullDigitLoop:
         txa
         asl
-        asl     ; * 4
+        asl                     ; * 4
         tay
         lda     (tmpX),y
         sta     loDigitLoc
@@ -324,11 +316,96 @@ incrementOffset:
 @ret:   rts
 
 
+
+setShapeWidth:
+        ldy     #$00
+        ldx     #$00
+        lda     offset
+        pha
+        lda     offset+1
+        pha
+@findNewline:
+        inx
+        jsr     incrementOffset
+        lda     (offset),y
+        cmp     #newline
+        bne     @findNewline
+        stx     shapeWidth
+        pla
+        sta     offset+1
+        pla
+        sta     offset
+        rts
+
+
+backupOffset:
+        lda     offset
+        sta     offsetBackup
+        lda     offset+1
+        sta     offsetBackup+1
+        rts
+
+restoreOffset:
+        lda     offsetBackup
+        sta     offset
+        lda     offsetBackup+1
+        sta     offset+1
+        rts
+
+moveUp:
+        ; carryset = valid
+        jsr     backupOffset
+        sec
+        lda     offset
+        sbc     shapeWidth
+        sta     offset
+        lda     offset+1
+        sbc     #$00
+        sta     offset+1
+        ; set offset
+        sec
+        lda     offset
+        sbc     #<data
+        lda     offset+1
+        sbc     #>data
+        bcc     restoreOffset
+        rts
+
+moveDown:
+        ; carryset = valid
+        jsr     backupOffset
+        clc
+        lda     offset
+        adc     shapeWidth
+        sta     offset
+
+        lda     offset+1
+        adc     #$00
+        sta     offset+1
+        sec
+        lda     #<endOfData
+        sbc     offset
+        lda     #>endOfData
+        sbc     offset+1
+        bcc     restoreOffset
+        rts
+
+
+
+moveLeft:
+moveRight:
+
+
+
+
+
+
 loopInit:
         lda     #<data
         sta     offset
         lda     #>data
         sta     offset+1
+        jsr     setShapeWidth
 
 loop:
         jsr     isItANumber
@@ -356,7 +433,7 @@ endOfLoop:
         ldx     #result1DecimalOut
         jsr     convert3BytesToDecimal
 
-        lda     total2
+        lda     shapeWidth
         sta     decBuffer
         lda     total2+1
         sta     decBuffer+1
@@ -685,6 +762,7 @@ endpalette:
 data:
         .incbin "day03.input"
 .byte   $00
+endOfData:
 
 .segment "VECTORS": absolute
 
