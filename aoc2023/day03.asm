@@ -53,7 +53,7 @@ generalCounter: .res 1
 
 
 moveOffsetBackup: .res 2
-symbolCheckOffsetBackup: .res 2
+symbolOrAsteriskCheckBackup: .res 2
 shapeWidth: .res 1
 symbolsFound: .res 1
 
@@ -246,41 +246,53 @@ isItANumber:
         lda     (offset),y
         sec
         sbc     #asciiOffset
-        bcc     @NaN
+        bcc     setCarryAndReturn
         cmp     #$A
-        rts
-@NaN:
-        sec
         rts
 
 isItASymbol:
         ; carry clear == symbol
         jsr     isItANumber
-        bcs     @NaN
-@notASymbol:
+        bcs     maybeASymbol
+setCarryAndReturn:
         sec
         rts
-@NaN:
+maybeASymbol:
+        ldy     #$00
         lda     (offset),y
         cmp     #symDot
         clc
-        beq     @notASymbol
+        beq     setCarryAndReturn
+        rts
+
+isItAnAsterisk:
+        ; carry clear == asterisk
+        ldy     #$00
+        lda     (offset),y
+        cmp     symAsterisk
+        bne     setCarryAndReturn
+        clc
         rts
 
 
-restoreOffsetForSymbolCheck:
-        lda     symbolCheckOffsetBackup
+restoreOffsetForSymbolOrAsteriskCheck:
+        lda     symbolOrAsteriskCheckBackup
         sta     offset
-        lda     symbolCheckOffsetBackup+1
+        lda     symbolOrAsteriskCheckBackup+1
         sta     offset+1
         rts
 
+backupOffsetForSymbolOrAsteriskCheck:
+        lda     offset
+        sta     symbolOrAsteriskCheckBackup
+        lda     offset+1
+        sta     symbolOrAsteriskCheckBackup+1
+        rts
+
+
 isSymbolAdjacent:
         ; carry set - symbol adjacent
-        lda     offset
-        sta     symbolCheckOffsetBackup
-        lda     offset+1
-        sta     symbolCheckOffsetBackup+1
+        jsr   backupOffsetForSymbolOrAsteriskCheck
 
 ; check left first
         jsr     moveLeft
@@ -289,7 +301,7 @@ isSymbolAdjacent:
         bcc     @SymbolFound
 
 @restoreAndCheckRight:
-        jsr     restoreOffsetForSymbolCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
 ; check left first
         jsr     moveRight
         bcc     @restoreAndCheckUp
@@ -297,7 +309,7 @@ isSymbolAdjacent:
         bcc     @SymbolFound
 
 @restoreAndCheckUp:
-        jsr     restoreOffsetForSymbolCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         jsr     moveUp
         bcc     @restoreAndCheckDown
         jsr     isItASymbol
@@ -311,7 +323,7 @@ isSymbolAdjacent:
 
 @restoreAndCheckUpRight:
 ; we dunno what the offset is here, so reset and start new
-        jsr     restoreOffsetForSymbolCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         jsr     moveUp
         jsr     moveRight
         bcc     @restoreAndCheckDown
@@ -319,7 +331,7 @@ isSymbolAdjacent:
         bcc     @SymbolFound
 
 @restoreAndCheckDown:
-        jsr     restoreOffsetForSymbolCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         jsr     moveDown
         bcc     @SymbolNotFound
         jsr     isItASymbol
@@ -333,7 +345,7 @@ isSymbolAdjacent:
 
  @restoreAndCheckDownRight:
         ; we dunno what the offset is here, so reset and start new
-        jsr     restoreOffsetForSymbolCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         jsr     moveDown
         jsr     moveRight
         bcc     @SymbolNotFound
@@ -341,14 +353,22 @@ isSymbolAdjacent:
         bcs     @SymbolNotFound
 
 @SymbolFound:
-        jsr restoreOffsetForSymbolCheck
+        jsr restoreOffsetForSymbolOrAsteriskCheck
         sec
         rts
         
 @SymbolNotFound:
-        jsr restoreOffsetForSymbolCheck
+        jsr restoreOffsetForSymbolOrAsteriskCheck
         clc
         rts
+
+; PART 2!!!
+
+areNumbersAdjacent:
+        ; carry set - symbol adjacent
+        jsr   backupOffsetForSymbolOrAsteriskCheck
+
+
 
 
 pullOutNumber:
