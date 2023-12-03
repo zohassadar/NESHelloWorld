@@ -59,7 +59,20 @@ symbolsFound: .res 1
 
 ;  ------------------------------
 ; part 2
-adjacentNumberCount: .res 1
+
+; The number to be multiplied is the “multiplicand”,
+; and the number by which it is multiplied is the “multiplier”.
+
+multiplier: .res 2
+multiplicand: .res 2
+
+product: .res   3               ; largest expected is 999*999
+
+foundNumberSlots:
+foundNumberSlot1: .res 2
+foundNumberSlot2: .res 2
+adjacentNumberCount: .res 1     ; increment to keep track of how many found.  Use last bit to pick slot
+
 
 ;  ------------------------------
 ;  ------------------------------
@@ -305,7 +318,7 @@ backupOffsetForSymbolOrAsteriskCheck:
 
 isSymbolAdjacent:
         ; carry set - symbol adjacent
-        jsr   backupOffsetForSymbolOrAsteriskCheck
+        jsr     backupOffsetForSymbolOrAsteriskCheck
 
 ; check left first
         jsr     moveLeft
@@ -356,7 +369,7 @@ isSymbolAdjacent:
         jsr     isItASymbol
         bcc     @SymbolFound
 
- @restoreAndCheckDownRight:
+        @restoreAndCheckDownRight:
         ; we dunno what the offset is here, so reset and start new
         jsr     restoreOffsetForSymbolOrAsteriskCheck
         jsr     moveDown
@@ -366,12 +379,12 @@ isSymbolAdjacent:
         bcs     @SymbolNotFound
 
 @SymbolFound:
-        jsr restoreOffsetForSymbolOrAsteriskCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         sec
         rts
-        
+
 @SymbolNotFound:
-        jsr restoreOffsetForSymbolOrAsteriskCheck
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
         clc
         rts
 
@@ -379,7 +392,40 @@ isSymbolAdjacent:
 
 areNumbersAdjacent:
         ; carry set - symbol adjacent
-        jsr   backupOffsetForSymbolOrAsteriskCheck
+        jsr     backupOffsetForSymbolOrAsteriskCheck
+        rts
+
+multiplyTwoNumbers:
+        lda     #$00
+        sta     product
+        sta     product+1
+        sta     product+2
+
+        ldy     multiplier+1
+        ldx     multiplier
+        beq     @decrementY
+
+@addAnotherLayer:
+        clc
+        lda     multiplicand
+        adc     product
+        sta     product
+
+        lda     multiplicand+1
+        adc     product+1
+        sta     product+1
+
+        lda     #$00
+        adc     product+2
+        sta     product+2
+        dex
+        bne     @addAnotherLayer
+@decrementY:
+        dey
+        cpy     #$FF
+        bne     @addAnotherLayer
+        rts
+
 
 
 
@@ -394,7 +440,7 @@ pullOutNumber:
         bcs     @NaN
         sta     pulledDigits,x
 
-        jsr     isSymbolAdjacent ; carry set if found.  Keep a sum
+        jsr     isSymbolAdjacent; carry set if found.  Keep a sum
         lda     #$00
         adc     symbolsFound
         sta     symbolsFound
@@ -488,7 +534,7 @@ setShapeWidth:
 moveUp:
         ; carryset = valid
         jsr     backupOffset
-        clc     ;  -1 to account for newline
+        clc                     ;  -1 to account for newline
         lda     offset
         sbc     shapeWidth
         sta     offset
@@ -507,7 +553,7 @@ moveUp:
 moveDown:
         ; carryset = valid
         jsr     backupOffset
-        sec ;  +1 to account for newline
+        sec                     ;  +1 to account for newline
         lda     offset
         adc     shapeWidth
         sta     offset
@@ -618,14 +664,38 @@ endOfLoop:
         ldx     #result1DecimalOut
         jsr     convert4BytesToDecimal
 
-        lda     #$d2
+        ; test 1234567890
+        ; lda     #$d2
+        ; sta     decBuffer
+        ; lda     #$02
+        ; sta     decBuffer+1
+        ; lda     #$96
+        ; sta     decBuffer+2
+        ; lda     #$49
+        ; sta     decBuffer+3
+
+
+        ; test 69420
+        lda     #$34
+        sta     multiplicand
+        lda     #$00
+        sta     multiplicand+1
+
+        lda     #$37
+        sta     multiplier
+        lda     #$05
+        sta     multiplier+1
+        jsr     multiplyTwoNumbers
+
+        lda     product
         sta     decBuffer
-        lda     #$02
+        lda     product+1
         sta     decBuffer+1
-        lda     #$96
+        lda     product+2
         sta     decBuffer+2
-        lda     #$49
+        lda     #$00
         sta     decBuffer+3
+
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
 
@@ -954,7 +1024,7 @@ palette:
         .byte   $0F,$30,$30,$30
 endpalette:
 
-.byte   newline ; this keeps from having to do anything funky for the first row
+.byte   newline                 ; this keeps from having to do anything funky for the first row
 data:
         .incbin "day03.input"
 .byte   $00
