@@ -73,6 +73,8 @@ foundNumberSlot1: .res 2
 foundNumberSlot2: .res 2
 adjacentNumberCount: .res 1     ; increment to keep track of how many found.  Use last bit to pick slot
 
+skipSymbolCheck: .res 1
+
 
 ;  ------------------------------
 ;  ------------------------------
@@ -427,6 +429,49 @@ multiplyTwoNumbers:
         rts
 
 
+backUpToFindNumber:
+        jsr     isItANumber
+        bcs     @ret
+@checkNumberLoop:
+        jsr     decrementOffset
+        ldy     #$00
+        lda     (offset),y
+        cmp     #newline
+        bne     @checkIfNumber
+        jsr     incrementOffset
+        jmp     @readNumber
+@checkIfNumber:
+        jsr     isItANumber
+        bcc     @checkNumberLoop
+        jsr     incrementOffset
+@readNumber:
+        jsr     pullOutNumber
+        clc
+@ret:   rts
+
+
+
+findNumber:
+        jsr     isItANumber
+        bcs     @ret
+        jsr     pullOutNumber
+        clc
+@ret:   rts
+
+
+stashNumberInSlot:
+        lda     adjacentNumberCount
+        and     #$01
+        asl
+        clc
+        adc     #foundNumberSlots
+        tax
+        lda     pulledNumber
+        sta     tmp1,x
+        lda     pulledNumber+1
+        sta     tmp1+1,x
+        rts
+
 part2loop:
         ldy     #$00
         lda     (offset),y
@@ -434,9 +479,9 @@ part2loop:
         jmp     endOfPart2
 @notEndOfLoop:
         cmp     #newline
-        beq     @incrementAndJump
-        jsr     checkForAsterisk
-@incrementAndJump:
+        beq     incrementAndJump
+        jmp     checkForAsterisk
+incrementAndJump:
         jsr     incrementOffset
         jmp     part2loop
 
@@ -444,16 +489,151 @@ part2loop:
 
 checkForAsterisk:
         jsr     isItAnAsterisk
-        bcs     @nooverflow
-        inc     total2
-        bne     @nooverflow
-        inc     total2+1
-        bne     @nooverflow
-        inc     total2+2
-        bne     @nooverflow
-        inc     total2+3
-@nooverflow:
-        rts
+        bcs     incrementAndJump
+        ldy     #$00
+        sty     adjacentNumberCount
+
+        jsr     backupOffsetForSymbolOrAsteriskCheck
+ 
+;  UL  U  UR
+;   L     R
+;  LL  L  LR
+
+; check U first.  if found, don't check UL or UR.
+        jsr     moveUp
+        bcc     @restoreAndCheckL
+
+        jsr     backUpToFindNumber
+        bcs     @restoreAndCheckUL
+
+        ; NUMBER FOUND IN U
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+        jmp     @restoreAndCheckL
+
+@restoreAndCheckUL:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveUp
+        jsr     moveLeft
+        bcc     @restoreAndCheckUR
+        jsr     backUpToFindNumber
+        bcs     @restoreAndCheckUR
+
+        ; NUMBER FOUND IN UL
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckUR:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveUp
+        jsr     moveRight
+        bcc     @restoreAndCheckL
+        jsr     findNumber
+
+        ; NUMBER FOUND IN UR
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckL:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveLeft
+        bcc     @restoreAndCheckRight
+
+        jsr     backUpToFindNumber
+        bcs     @restoreAndCheckRight
+
+        ; NUMBER FOUND IN L
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckRight:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveRight
+        bcc     @restoreAndCheckDown
+
+        jsr     findNumber
+        bcs     @restoreAndCheckDown
+
+        ; NUMBER FOUND IN R
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckDown:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveDown
+        bcc     @checkTotal
+
+        jsr     backUpToFindNumber
+        bcs     @restoreAndCheckLL
+
+        ; NUMBER FOUND IN LL
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckLL:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveDown
+        jsr     moveLeft
+        bcc     @restoreAndCheckLR
+
+        jsr     backUpToFindNumber
+        bcs     @restoreAndCheckLR
+
+        ; NUMBER FOUND IN LL
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@restoreAndCheckLR:
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
+        jsr     moveDown
+        jsr     moveRight
+        bcc     @checkTotal
+
+        jsr     findNumber
+        bcs     @checkTotal
+
+        ; NUMBER FOUND IN LR
+        jsr     stashNumberInSlot
+        inc     adjacentNumberCount
+
+@checkTotal:
+        lda     adjacentNumberCount
+        cmp     #$02
+        beq     @addTotal
+        lda     #$00
+        sta     foundNumberSlots
+        sta     foundNumberSlots+1
+        sta     foundNumberSlots+2
+        sta     foundNumberSlots+3
+@addTotal:
+        lda     foundNumberSlots
+        sta     multiplier
+        lda     foundNumberSlots+1
+        sta     multiplier+1
+        lda     foundNumberSlots+2
+        sta     multiplicand
+        lda     foundNumberSlots+3
+        sta     multiplicand+1
+        jsr     multiplyTwoNumbers
+        clc
+        lda     product
+        adc     total2
+        sta     total2
+
+        lda     product+1
+        adc     total2+1
+        sta     total2+1
+
+        lda     product+2
+        adc     total2+2
+        sta     total2+2
+
+        lda     #$00
+        adc     total2+3
+        sta     total2+3
+
+        jmp     incrementAndJump
 
 
 
@@ -469,11 +649,15 @@ pullOutNumber:
         bcs     @NaN
         sta     pulledDigits,x
 
-        jsr     isSymbolAdjacent; carry set if found.  Keep a sum
+        lda     skipSymbolCheck
+        bne     @skipSymbolCheck
+
+        jsr     isSymbolAdjacent ; carry set if found.  Keep a sum
         lda     #$00
         adc     symbolsFound
         sta     symbolsFound
 
+@skipSymbolCheck:
         jsr     incrementOffset
         inx
         bpl     @pullDigit
@@ -727,6 +911,8 @@ endOfLoop:
         sta     offset
         lda     #>data
         sta     offset+1
+
+        inc     skipSymbolCheck
 
         jmp     part2loop
 
