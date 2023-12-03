@@ -245,16 +245,26 @@ multBy1TableHi:
 loDigitLoc = tmp1
 hiDigitLoc = tmpQ
 
+isItANumber:
+        ; carry clear == number
+        ldy     #$00
+        lda     (offset),y
+        sec
+        sbc     #asciiOffset
+        bcc     @NaN
+        cmp     #$A
+        rts
+@NaN:
+        sec
+        rts
+
+
 pullOutNumber:
         ldx     #$00
         stx     pulledNumber
         stx     pulledNumber+1
 @pullDigit:
-        ldy     #$00
-        lda     (offset),y
-        sec
-        sbc     #asciiOffset
-        cmp     #$A
+        jsr     isItANumber
         bcs     @NaN
         sta     pulledDigits,x
         jsr     incrementOffset
@@ -319,7 +329,15 @@ loopInit:
         sta     offset
         lda     #>data
         sta     offset+1
-        jmp     endOfLoop
+
+loop:
+        jsr     isItANumber
+        bcc     endOfLoop
+        jsr     incrementOffset
+        jmp     loop
+
+
+
 
 
 
@@ -327,23 +345,25 @@ somethingWrong:
         inc     errorFlag
 
 endOfLoop:
-        lda     total
+        jsr     pullOutNumber
+
+        lda     pulledNumber
         sta     decBuffer
-        lda     total+1
+        lda     pulledNumber+1
         sta     decBuffer+1
         lda     total+2
         sta     decBuffer+2
         ldx     #result1DecimalOut
         jsr     convert3BytesToDecimal
 
-        ; lda     total2
-        ; sta     decBuffer
-        ; lda     total2+1
-        ; sta     decBuffer+1
-        ; lda     total2+2
-        ; sta     decBuffer+2
-        ; ldx     #result2DecimalOut
-        ; jsr     convert3BytesToDecimal
+        lda     total2
+        sta     decBuffer
+        lda     total2+1
+        sta     decBuffer+1
+        lda     total2+2
+        sta     decBuffer+2
+        ldx     #result2DecimalOut
+        jsr     convert3BytesToDecimal
 
 loop4Ever:
         jmp     loop4Ever
