@@ -22,7 +22,7 @@ found:  .res    1
 offset: .res    2
 
 total:  .res    3
-total2: .res    3
+total2: .res    4
 
 totalFrames: .res 2
 
@@ -40,28 +40,31 @@ wordTemp: .res  2
 
 errorFlag: .res 1
 
-result1DecimalOut: .res 8
-result2DecimalOut: .res 8
+result1DecimalOut: .res 10
+result2DecimalOut: .res 10
 
-decBuffer: .res 3
-decResult: .res 3
+decBuffer: .res 4
+decResult: .res 4
 
 generalCounter: .res 1
 
 ;  ------------------------------
 ;  ------------------------------
 
-
+; part 1
 moveOffsetBackup: .res 2
 symbolOrAsteriskCheckBackup: .res 2
 shapeWidth: .res 1
 symbolsFound: .res 1
 
+;  ------------------------------
+; part 2
+adjacentNumberCount: .res 1
 
 ;  ------------------------------
 ;  ------------------------------
 
-.res    $BA
+.res    $AA
 
 .bss
 stack:
@@ -134,26 +137,31 @@ symSlash        = $2f           ; /
 symEqual        = $3d           ; =
 symAt           = $40           ; @
 
-
 compareBytes:
+bytesFor1b:
+        .byte   $00,$ca,$9a,$3b
+bytesFor100m:
+        .byte   $00,$e1,$f5,$05
 bytesFor10m:
-        .byte   $80,$96,$98
+        .byte   $80,$96,$98,$00
 bytesFor1m:
-        .byte   $40,$42,$0f
+        .byte   $40,$42,$0f,$00
 bytesFor100k:
-        .byte   $a0,$86,$01
+        .byte   $a0,$86,$01,$00
 bytesFor10k:
-        .byte   $10,$27,$00
+        .byte   $10,$27,$00,$00
 bytesFor1k:
-        .byte   $e8,$03,$00
+        .byte   $e8,$03,$00,$00
 bytesFor100:
-        .byte   $64,$00,$00
+        .byte   $64,$00,$00,$00
 bytesFor10:
-        .byte   $0a,$00,$00
+        .byte   $0a,$00,$00,$00
 bytesFor1:
-        .byte   $01,$00,$00
+        .byte   $01,$00,$00,$00
 
 bytesForCompare:
+        .addr   bytesFor1b
+        .addr   bytesFor100m
         .addr   bytesFor10m
         .addr   bytesFor1m
         .addr   bytesFor100k
@@ -164,17 +172,16 @@ bytesForCompare:
         .addr   bytesFor1
 
 
-convert3BytesToDecimal:
-; 3 bytes need to be in decBuffer. x is offset to result
-        lda     #$00            ; count up, stop at 8
+convert4BytesToDecimal:
+; 4 bytes need to be in decBuffer. x is offset to result
+        lda     #$00            ; count up, stop at 10
         sta     generalCounter
 
 @getMod:
         lda     generalCounter
         asl
-        clc
-        adc     generalCounter
-        tay                     ; y = generalCounter * 3
+        asl
+        tay                     ; y = generalCounter * 4
 @doSubtraction:
         sec
         lda     decBuffer
@@ -189,6 +196,10 @@ convert3BytesToDecimal:
         sbc     compareBytes+2,y
         sta     decResult+2
 
+        lda     decBuffer+3
+        sbc     compareBytes+3,y
+        sta     decResult+3
+
         bcc     @nextDigit
 
         ; cannot inc (tmpX),y
@@ -200,13 +211,15 @@ convert3BytesToDecimal:
         sta     decBuffer+1
         lda     decResult+2
         sta     decBuffer+2
+        lda     decResult+3
+        sta     decBuffer+3
         jmp     @doSubtraction
 
 @nextDigit:
         inx
         inc     generalCounter
         lda     generalCounter
-        cmp     #$08
+        cmp     #$0A
         bne     @getMod
         rts
 
@@ -600,17 +613,21 @@ endOfLoop:
         sta     decBuffer+1
         lda     total+2
         sta     decBuffer+2
+        lda     #$00
+        sta     decBuffer+3
         ldx     #result1DecimalOut
-        jsr     convert3BytesToDecimal
+        jsr     convert4BytesToDecimal
 
-        lda     total2
+        lda     #$d2
         sta     decBuffer
-        lda     total2+1
+        lda     #$02
         sta     decBuffer+1
-        lda     total2+2
+        lda     #$96
         sta     decBuffer+2
+        lda     #$49
+        sta     decBuffer+3
         ldx     #result2DecimalOut
-        jsr     convert3BytesToDecimal
+        jsr     convert4BytesToDecimal
 
 loop4Ever:
         jmp     loop4Ever
@@ -702,7 +719,10 @@ renderStuff:
         sta     PPUDATA
         lda     result1DecimalOut+7
         sta     PPUDATA
-
+        lda     result1DecimalOut+8
+        sta     PPUDATA
+        lda     result1DecimalOut+9
+        sta     PPUDATA
 
         lda     #$21
         sta     PPUADDR
@@ -743,6 +763,11 @@ renderStuff:
         sta     PPUDATA
         lda     result2DecimalOut+7
         sta     PPUDATA
+        lda     result2DecimalOut+8
+        sta     PPUDATA
+        lda     result2DecimalOut+9
+        sta     PPUDATA
+
 
         lda     #$22
         sta     PPUADDR
