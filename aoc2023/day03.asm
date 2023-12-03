@@ -20,9 +20,8 @@ renderMode: .res 1
 found:  .res    1
 
 offset: .res    2
-offsetBackup: .res 2
 
-total:  .res    2
+total:  .res    3
 total2: .res    3
 
 totalFrames: .res 2
@@ -52,7 +51,11 @@ generalCounter: .res 1
 ;  ------------------------------
 ;  ------------------------------
 
+
+moveOffsetBackup: .res 2
+symbolCheckOffsetBackup: .res 2
 shapeWidth: .res 1
+symbolsFound: .res 1
 
 
 ;  ------------------------------
@@ -250,15 +253,119 @@ isItANumber:
         sec
         rts
 
+isItASymbol:
+        ; carry clear == symbol
+        jsr     isItANumber
+        bcs     @NaN
+@notASymbol:
+        sec
+        rts
+@NaN:
+        lda     (offset),y
+        cmp     #symDot
+        clc
+        beq     @notASymbol
+        rts
+
+
+restoreOffsetForSymbolCheck:
+        lda     symbolCheckOffsetBackup
+        sta     offset
+        lda     symbolCheckOffsetBackup+1
+        sta     offset+1
+        rts
+
+isSymbolAdjacent:
+        ; carry set - symbol adjacent
+        lda     offset
+        sta     symbolCheckOffsetBackup
+        lda     offset+1
+        sta     symbolCheckOffsetBackup+1
+
+; check left first
+        jsr     moveLeft
+        bcc     @restoreAndCheckRight
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+@restoreAndCheckRight:
+        jsr     restoreOffsetForSymbolCheck
+; check left first
+        jsr     moveRight
+        bcc     @restoreAndCheckUp
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+@restoreAndCheckUp:
+        jsr     restoreOffsetForSymbolCheck
+        jsr     moveUp
+        bcc     @restoreAndCheckDown
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+; check Up Left
+        jsr     moveLeft
+        bcc     @restoreAndCheckUpRight
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+@restoreAndCheckUpRight:
+; we dunno what the offset is here, so reset and start new
+        jsr     restoreOffsetForSymbolCheck
+        jsr     moveUp
+        jsr     moveRight
+        bcc     @restoreAndCheckDown
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+@restoreAndCheckDown:
+        jsr     restoreOffsetForSymbolCheck
+        jsr     moveDown
+        bcc     @SymbolNotFound
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+; check Down Left
+        jsr     moveLeft
+        bcc     @restoreAndCheckDownRight
+        jsr     isItASymbol
+        bcc     @SymbolFound
+
+ @restoreAndCheckDownRight:
+        ; we dunno what the offset is here, so reset and start new
+        jsr     restoreOffsetForSymbolCheck
+        jsr     moveDown
+        jsr     moveRight
+        bcc     @SymbolNotFound
+        jsr     isItASymbol
+        bcs     @SymbolNotFound
+
+@SymbolFound:
+        jsr restoreOffsetForSymbolCheck
+        sec
+        rts
+        
+@SymbolNotFound:
+        jsr restoreOffsetForSymbolCheck
+        clc
+        rts
+
 
 pullOutNumber:
         ldx     #$00
         stx     pulledNumber
         stx     pulledNumber+1
+        stx     symbolsFound
 @pullDigit:
         jsr     isItANumber
         bcs     @NaN
         sta     pulledDigits,x
+
+        jsr     isSymbolAdjacent ; carry set if found.  Keep a sum
+        lda     #$00
+        adc     symbolsFound
+        sta     symbolsFound
+
         jsr     incrementOffset
         inx
         bpl     @pullDigit
@@ -315,6 +422,14 @@ incrementOffset:
         inc     offset+1
 @ret:   rts
 
+decrementOffset:
+        dec     offset
+        lda     offset
+        cmp     #$FF
+        bne     @ret
+        dec     offset+1
+@ret:   rts
+
 
 
 setShapeWidth:
@@ -337,25 +452,10 @@ setShapeWidth:
         sta     offset
         rts
 
-
-backupOffset:
-        lda     offset
-        sta     offsetBackup
-        lda     offset+1
-        sta     offsetBackup+1
-        rts
-
-restoreOffset:
-        lda     offsetBackup
-        sta     offset
-        lda     offsetBackup+1
-        sta     offset+1
-        rts
-
 moveUp:
         ; carryset = valid
         jsr     backupOffset
-        sec
+        clc     ;  -1 to account for newline
         lda     offset
         sbc     shapeWidth
         sta     offset
@@ -374,7 +474,7 @@ moveUp:
 moveDown:
         ; carryset = valid
         jsr     backupOffset
-        clc
+        sec ;  +1 to account for newline
         lda     offset
         adc     shapeWidth
         sta     offset
@@ -390,15 +490,43 @@ moveDown:
         bcc     restoreOffset
         rts
 
+backupOffset:
+        lda     offset
+        sta     moveOffsetBackup
+        lda     offset+1
+        sta     moveOffsetBackup+1
+        rts
 
+restoreOffset:
+        lda     moveOffsetBackup
+        sta     offset
+        lda     moveOffsetBackup+1
+        sta     offset+1
+        rts
 
 moveLeft:
+        ; carryset = valid
+        jsr     backupOffset
+        jsr     decrementOffset
+        ldy     #$00
+        lda     (offset),y
+        cmp     #newline
+        clc
+        beq     restoreOffset
+        sec
+        rts
+
 moveRight:
-
-
-
-
-
+        ; carryset = valid
+        jsr     backupOffset
+        jsr     incrementOffset
+        ldy     #$00
+        lda     (offset),y
+        cmp     #newline
+        clc
+        beq     restoreOffset
+        sec
+        rts
 
 loopInit:
         lda     #<data
@@ -408,32 +536,54 @@ loopInit:
         jsr     setShapeWidth
 
 loop:
-        jsr     isItANumber
-        bcc     endOfLoop
+        ldy     #$00
+        lda     (offset),y
+        beq     endOfLoop
+        cmp     #newline
+        bne     @checkIfNumber
+@incrementAndJump:
         jsr     incrementOffset
         jmp     loop
 
+@checkIfNumber:
+        jsr     isItANumber
+        bcs     @incrementAndJump
 
+        jsr     pullOutNumber
+        lda     symbolsFound
+        beq     loop
+        clc
+        lda     pulledNumber
+        adc     total
+        sta     total
 
+        lda     pulledNumber+1
+        adc     total+1
+        sta     total+1
 
+        lda     #$00
+        adc     total+2
+        sta     total+2
+
+        jmp     loop
 
 
 somethingWrong:
         inc     errorFlag
 
 endOfLoop:
-        jsr     pullOutNumber
+        inc     found
 
-        lda     pulledNumber
+        lda     total
         sta     decBuffer
-        lda     pulledNumber+1
+        lda     total+1
         sta     decBuffer+1
         lda     total+2
         sta     decBuffer+2
         ldx     #result1DecimalOut
         jsr     convert3BytesToDecimal
 
-        lda     shapeWidth
+        lda     total2
         sta     decBuffer
         lda     total2+1
         sta     decBuffer+1
@@ -759,6 +909,7 @@ palette:
         .byte   $0F,$30,$30,$30
 endpalette:
 
+.byte   newline ; this keeps from having to do anything funky for the first row
 data:
         .incbin "day03.input"
 .byte   $00
