@@ -79,7 +79,7 @@ skipSymbolCheck: .res 1
 ;  ------------------------------
 ;  ------------------------------
 
-.res    $AA
+.res    $A0
 
 .bss
 stack:
@@ -530,6 +530,7 @@ checkForAsterisk:
         jsr     moveRight
         bcc     @restoreAndCheckL
         jsr     findNumber
+        bcs     @restoreAndCheckL
 
         ; NUMBER FOUND IN UR
         jsr     stashNumberInSlot
@@ -570,6 +571,7 @@ checkForAsterisk:
         ; NUMBER FOUND IN LL
         jsr     stashNumberInSlot
         inc     adjacentNumberCount
+        jmp     @checkTotal
 
 @restoreAndCheckLL:
         jsr     restoreOffsetForSymbolOrAsteriskCheck
@@ -632,6 +634,7 @@ checkForAsterisk:
         lda     #$00
         adc     total2+3
         sta     total2+3
+        jsr     restoreOffsetForSymbolOrAsteriskCheck
 
         jmp     incrementAndJump
 
@@ -1033,6 +1036,8 @@ renderStuff:
         ldx     #<stringAnswer
         ldy     #>stringAnswer
         jsr     sendWordToPPU
+        lda     total2+3
+        jsr     twoDigitsToPPU
         lda     total2+2
         jsr     twoDigitsToPPU
         lda     total2+1
