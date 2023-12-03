@@ -295,7 +295,7 @@ isItAnAsterisk:
         ; carry clear == asterisk
         ldy     #$00
         lda     (offset),y
-        cmp     symAsterisk
+        cmp     #symAsterisk
         bne     setCarryAndReturn
         clc
         rts
@@ -427,8 +427,37 @@ multiplyTwoNumbers:
         rts
 
 
+part2loop:
+        ldy     #$00
+        lda     (offset),y
+        bne     @notEndOfLoop
+        jmp     endOfPart2
+@notEndOfLoop:
+        cmp     #newline
+        beq     @incrementAndJump
+        jsr     checkForAsterisk
+@incrementAndJump:
+        jsr     incrementOffset
+        jmp     part2loop
 
 
+
+checkForAsterisk:
+        jsr     isItAnAsterisk
+        bcs     @nooverflow
+        inc     total2
+        bne     @nooverflow
+        inc     total2+1
+        bne     @nooverflow
+        inc     total2+2
+        bne     @nooverflow
+        inc     total2+3
+@nooverflow:
+        rts
+
+
+
+; end Part 2 funcs
 
 pullOutNumber:
         ldx     #$00
@@ -651,8 +680,6 @@ somethingWrong:
         inc     errorFlag
 
 endOfLoop:
-        inc     found
-
         lda     total
         sta     decBuffer
         lda     total+1
@@ -676,24 +703,43 @@ endOfLoop:
 
 
         ; test 69420
-        lda     #$34
-        sta     multiplicand
-        lda     #$00
-        sta     multiplicand+1
+        ; lda     #$34
+        ; sta     multiplicand
+        ; lda     #$00
+        ; sta     multiplicand+1
 
-        lda     #$37
-        sta     multiplier
-        lda     #$05
-        sta     multiplier+1
-        jsr     multiplyTwoNumbers
+        ; lda     #$37
+        ; sta     multiplier
+        ; lda     #$05
+        ; sta     multiplier+1
+        ; jsr     multiplyTwoNumbers
 
-        lda     product
+        ; lda     product
+        ; sta     decBuffer
+        ; lda     product+1
+        ; sta     decBuffer+1
+        ; lda     product+2
+        ; sta     decBuffer+2
+        ; lda     #$00
+        ; sta     decBuffer+3
+
+        lda     #<data
+        sta     offset
+        lda     #>data
+        sta     offset+1
+
+        jmp     part2loop
+
+endOfPart2:
+        inc     found
+
+        lda     total2
         sta     decBuffer
-        lda     product+1
+        lda     total2+1
         sta     decBuffer+1
-        lda     product+2
+        lda     total2+2
         sta     decBuffer+2
-        lda     #$00
+        lda     total2+3
         sta     decBuffer+3
 
         ldx     #result2DecimalOut
