@@ -136,6 +136,14 @@ symSlash        = $2f           ; /
 symEqual        = $3d           ; =
 symAt           = $40           ; @
 
+
+.macro INCREMENT_OFFSET
+        inc     offset
+        bne     :+
+        inc     offset+1
+:       
+.endmacro
+
 compareBytes:
 bytesFor1b:
         .byte   $00,$ca,$9a,$3b
@@ -242,6 +250,7 @@ multBy1TableLo:
 loDigitLoc      = tmp1
 hiDigitLoc      = tmpQ
 
+
 setCarryAndReturn:
         sec
         rts
@@ -259,14 +268,14 @@ isItANumber:
 resetPulledNumber:
         ldx     #$00
         stx     pulledNumber
-        rts
+        jmp     pullOutKnownNumber
 
 pullDigit:
         jsr     isItANumber
         bcs     NaN
 pullOutKnownNumber:
         sta     pulledDigits,x
-        jsr     incrementOffset
+INCREMENT_OFFSET
         inx
         bpl     pullDigit
 NaN:
@@ -295,21 +304,17 @@ NaN:
         bmi     @ret
         jmp     @pullDigitLoop
 @ret:
-        ldy     #$00
+        ldx     pulledNumber
+        inc     tallyPage,x
         rts
 
 
 incrementY:
-        jsr     incrementOffset
+        INCREMENT_OFFSET
         dey
         bne     incrementY
         rts
 
-incrementOffset:
-        inc     offset
-        bne     @ret
-        inc     offset+1
-@ret:   rts
 
 
 restoreOriginal:
@@ -325,24 +330,18 @@ magnitudeHi:
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02
 
 processNumbers:
-        lda     #$00
-        sta     myWinningNumbers
-        ldx     myNumberCount
-@checkMyNextNumber:
+        ldx #99
+        ldy #$00
+@tallyHo:
+        lda tallyPage,x
+        bmi @noCount
+        iny
+@noCount:
         dex
-        bmi     @allNumbersChecked
-@checkAgainstWinners:
-        ldy     winNumberCount
-@checkNumber:
-        dey
-        bmi     @checkMyNextNumber
-        lda     myNumbers,x
-        cmp     winningNumbers,y
-        bne     @checkNumber
-        inc     myWinningNumbers
-        jmp     @checkMyNextNumber
-@allNumbersChecked:
-        ldx     myWinningNumbers
+        bpl @tallyHo
+        tya
+        sta generalCounter
+        tax
         clc
         lda     magnitudeLo,x
         adc     total
@@ -356,7 +355,7 @@ processNumbers:
         adc     total+2
         sta     total+2
 
-        lda     myWinningNumbers
+        lda     generalCounter
         sec
         adc     currentRow
         sta     generalCounter ; stop here
@@ -428,35 +427,19 @@ readChainOfNumbers:
         lda     (offset),y
         cmp     #' '
         bne     @checkPipeOrNewline
-        jsr     incrementOffset
+        INCREMENT_OFFSET
         jmp     @checkNextChar
 @checkPipeOrNewline:
         cmp     readUntilSymbol
         bne     @checkNumber
 ; exit stuff
-        jsr     incrementOffset
-        ldx     currentNumberCount
-        lda     readMode
-        and     #$1
-        beq     @retWin
-        stx     myNumberCount
-        rts
-; exit stuff
-@retWin:
-        stx     winNumberCount
+        INCREMENT_OFFSET
         rts
 
+
 @checkNumber:
-        stx     xStash
         jsr     isItANumber
-        bcs     somethingWrong
         jsr     resetPulledNumber
-        jsr     pullOutKnownNumber
-        ldx     xStash
-        lda     pulledNumber
-        sta     tmp1,x
-        inc     currentNumberCount
-        inx
         jmp     @checkNextChar
 
 loopInit:
@@ -478,6 +461,12 @@ loop:
         bne     somethingWrong
         ldy     #9
         jsr     incrementY
+        ldx #99
+        lda #$FE
+@tallyHo:
+        sta tallyPage,x
+        dex
+        bpl @tallyHo
         jsr     readChainOfNumbers ; leave pointer at first space or after newline
         inc     readMode
         jsr     readChainOfNumbers 
