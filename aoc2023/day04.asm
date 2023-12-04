@@ -223,31 +223,21 @@ convert4BytesToDecimal:
         rts
 
 digitTableHi:
-        .byte   >oneDigit,>twoDigit,>threeDigit
+        .byte   >oneDigit,>twoDigit
 digitTableLo:
-        .byte   <oneDigit,<twoDigit,<threeDigit
+        .byte   <oneDigit,<twoDigit
 
-threeDigit:
-        .addr   multBy100TableLo
-        .addr   multBy100TableHi
 twoDigit:
         .addr   multBy10TableLo
-        .addr   multBy10TableHi
 oneDigit:
         .addr   multBy1TableLo
-        .addr   multBy1TableHi
 
-multBy100TableLo:
-        .byte   $00,$64,$c8,$2c,$90,$f4,$58,$bc,$20,$84
-multBy100TableHi:
-        .byte   $00,$00,$00,$01,$01,$01,$02,$02,$03,$03
+
 multBy10TableLo:
         .byte   $00,$0a,$14,$1e,$28,$32,$3c,$46,$50,$5a
 multBy1TableLo:
         .byte   $00,$01,$02,$03,$04,$05,$06,$07,$08,$09
-multBy10TableHi:
-multBy1TableHi:
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
 
 loDigitLoc      = tmp1
 hiDigitLoc      = tmpQ
@@ -269,7 +259,6 @@ isItANumber:
 resetPulledNumber:
         ldx     #$00
         stx     pulledNumber
-        stx     pulledNumber+1
         rts
 
 pullDigit:
@@ -290,7 +279,6 @@ NaN:
 @pullDigitLoop:
         txa
         asl
-        asl                     ; * 4
         tay
         lda     (tmpX),y
         sta     loDigitLoc
@@ -298,21 +286,11 @@ NaN:
         lda     (tmpX),y
         sta     loDigitLoc+1
 
-        iny
-        lda     (tmpX),y
-        sta     hiDigitLoc
-        iny
-        lda     (tmpX),y
-        sta     hiDigitLoc+1
-
         ldy     pulledDigits,x
         lda     (loDigitLoc),y
         clc
         adc     pulledNumber
         sta     pulledNumber
-        lda     (hiDigitLoc),y
-        adc     pulledNumber+1
-        sta     pulledNumber+1
         dex
         bmi     @ret
         jmp     @pullDigitLoop
