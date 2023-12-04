@@ -268,6 +268,7 @@ isItANumber:
 resetPulledNumber:
         ldx     #$00
         stx     pulledNumber
+        jsr     isItANumber
         jmp     pullOutKnownNumber
 
 pullDigit:
@@ -280,33 +281,20 @@ INCREMENT_OFFSET
         bpl     pullDigit
 NaN:
         dex
-        lda     digitTableLo,x
-        sta     tmpX
-        lda     digitTableHi,x
-        sta     tmpX+1
-
-@pullDigitLoop:
-        txa
-        asl
-        tay
-        lda     (tmpX),y
-        sta     loDigitLoc
-        iny
-        lda     (tmpX),y
-        sta     loDigitLoc+1
-
-        ldy     pulledDigits,x
-        lda     (loDigitLoc),y
+        beq     @pullOneDigit
+        ldx     pulledDigits
+        lda     multBy10TableLo,x
         clc
-        adc     pulledNumber
-        sta     pulledNumber
-        dex
-        bmi     @ret
-        jmp     @pullDigitLoop
-@ret:
-        ldx     pulledNumber
+        adc     pulledDigits+1
+        tax
         inc     tallyPage,x
         rts
+@pullOneDigit:
+        lda     pulledDigits
+        tax
+        inc     tallyPage,x
+        rts
+ 
 
 
 incrementY:
@@ -351,9 +339,6 @@ processNumbers:
         adc     total+1
         sta     total+1
 
-        lda     #$00
-        adc     total+2
-        sta     total+2
 
         lda     generalCounter
         sec
@@ -396,9 +381,6 @@ processNumbers:
         adc     total2+2
         sta     total2+2
 
-        lda     #$00
-        adc     total2+3
-        sta     total2+3
 
         rts
 
@@ -408,20 +390,6 @@ buffer = tmp1
 
 
 readChainOfNumbers:
-        lda     #$00
-        sta     currentNumberCount
-
-        ldy     #'|'
-        ldx     #winningNumbers
-
-        lda     readMode
-        and     #$1
-        beq     @store
-
-        ldx     #myNumbers
-        ldy     #newline
-@store:
-        sty     readUntilSymbol
 @checkNextChar:
         ldy     #$00
         lda     (offset),y
@@ -438,7 +406,6 @@ readChainOfNumbers:
 
 
 @checkNumber:
-        jsr     isItANumber
         jsr     resetPulledNumber
         jmp     @checkNextChar
 
@@ -461,14 +428,20 @@ loop:
         bne     somethingWrong
         ldy     #9
         jsr     incrementY
-        ldx #99
-        lda #$FE
+        ldx     #99
+        lda     #$FE
 @tallyHo:
         sta tallyPage,x
         dex
         bpl @tallyHo
+
+        lda     #'|'
+        sta     readUntilSymbol
+@store:
         jsr     readChainOfNumbers ; leave pointer at first space or after newline
         inc     readMode
+        lda     #newline
+        sta     readUntilSymbol
         jsr     readChainOfNumbers 
         inc     readMode
         jsr     processNumbers
