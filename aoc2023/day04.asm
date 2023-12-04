@@ -45,27 +45,36 @@ decBuffer: .res 4
 decResult: .res 4
 
 generalCounter: .res 1
+xStash: .res 1
 
 ;  ------------------------------
 ;  ------------------------------
+readMode: .res 1
 
+currentRow: .res 1
+currentNumberCount: .res 1
+
+winNumberCount: .res 1 ; to set indexes
+myNumberCount: .res 1 
+
+myWinningNumbers: .res 1 ; count used to add 
+
+; where pools of numbers are kept
+winningNumbers: .res 10
+myNumbers: .res 26
+
+
+addScratch1: .res 3
+addScratch2: .res 3
 
 ;  ------------------------------
 ;  ------------------------------
-
-.res    $A0
 
 .bss
-stack:
-        .res    $100
-
-unused:
-        .res    $100
-        .res    $100
-        .res    $100
-        .res    $100
-        .res    $100
-        .res    $100
+stack:  .res    $100
+cardCountLo: .res    $100
+cardCountMed: .res    $100
+cardCountHi: .res    $100
 
 .segment "PRG"
 
@@ -322,24 +331,144 @@ incrementOffset:
 @ret:   rts
 
 
-
-loopInit:
+restoreOriginal:
         lda     #<data
         sta     offset
         lda     #>data
         sta     offset+1
+        rts
 
-loop:
+magnitudeLo:
+        .byte   $00,$01,$02,$04,$08,$10,$20,$40,$80,$00,$00
+magnitudeHi:
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02
+
+processNumbers:
+        lda     #$00
+        sta     myWinningNumbers
+        ldx     myNumberCount
+@checkMyNextNumber:
+        dex
+        bmi     @allNumbersChecked
+@checkAgainstWinners:
+        ldy     winNumberCount
+@checkNumber:
+        dey
+        bmi     @checkMyNextNumber
+        lda     myNumbers,x
+        cmp     winningNumbers,y
+        bne     @checkNumber
+        inc     myWinningNumbers
+        jmp     @checkMyNextNumber
+@allNumbersChecked:
+        ldx     myWinningNumbers
+        clc
+        lda     magnitudeLo,x
+        adc     total
+        sta     total
+
+        lda     magnitudeHi,x
+        adc     total+1
+        sta     total+1
+
+        lda     #$00
+        adc     total+2
+        sta     total+2
+        rts
+
+
+readUntilSymbol = generalCounter
+buffer = tmp1
+
+
+readChainOfNumbers:
+        lda     #$00
+        sta     currentNumberCount
+
+        ldy     #'|'
+        ldx     #winningNumbers
+
+        lda     readMode
+        and     #$1
+        beq     @store
+
+        ldx     #myNumbers
+        ldy     #newline
+@store:
+        sty     readUntilSymbol
+@checkNextChar:
         ldy     #$00
         lda     (offset),y
+        cmp     #' '
+        bne     @checkPipeOrNewline
+        jsr     incrementOffset
+        jmp     @checkNextChar
+@checkPipeOrNewline:
+        cmp     readUntilSymbol
+        bne     @checkNumber
+; exit stuff
+        jsr     incrementOffset
+        ldx     currentNumberCount
+        lda     readMode
+        and     #$1
+        beq     @retWin
+        stx     myNumberCount
+        rts
+; exit stuff
+@retWin:
+        stx     winNumberCount
+        rts
 
+@checkNumber:
+        stx     xStash
+        jsr     isItANumber
+        bcs     somethingWrong
+        jsr     pullOutNumber
+        ldx     xStash
+        lda     pulledNumber
+        sta     tmp1,x
+        inc     currentNumberCount
+        inx
+        jmp     @checkNextChar
+
+loopInit:
+        jsr     restoreOriginal
+        lda     #$01
+        ldy     #$00
+initCounts:
+        sta     cardCountLo,y
+        iny
+        bne     initCounts
+loop:
+        ; expect to start at the beginning of a line with a capital C
+        ldy     #$00
+        lda     (offset),y
+        bne     @notEOF
         jmp     endOfLoop
+@notEOF:
+        cmp     #'C'
+        bne     somethingWrong
+        ldy     #9
+        jsr     incrementY
+        jsr     readChainOfNumbers ; leave pointer at first space or after newline
+        inc     readMode
+        jsr     readChainOfNumbers 
+        inc     readMode
+        jsr     processNumbers
 
-
+        inc     currentRow
+        jmp     loop
 somethingWrong:
         inc     errorFlag
 
 endOfLoop:
+        ; lda     winNumberCount
+        ; sta     total
+        ; lda     myNumberCount
+        ; sta     total+1
+        ; lda     currentRow
+        ; sta     total+2
+        
         lda     total
         sta     decBuffer
         lda     total+1
