@@ -374,6 +374,52 @@ processNumbers:
         lda     #$00
         adc     total+2
         sta     total+2
+
+        lda     myWinningNumbers
+        sec
+        adc     currentRow
+        sta     generalCounter ; stop here
+
+        ldx     currentRow
+        ldy     currentRow
+@addBytes:
+        iny
+        beq     @added ; safeguard
+        cpy     generalCounter
+        beq     @added
+
+        clc
+        lda     cardCountLo,x
+        adc     cardCountLo,y
+        sta     cardCountLo,y
+
+        lda     cardCountMed,x
+        adc     cardCountMed,y
+        sta     cardCountMed,y
+
+        lda     cardCountHi,x
+        adc     cardCountHi,y
+        sta     cardCountHi,y
+
+        jmp     @addBytes
+@added:
+        clc
+        lda     cardCountLo,x
+        adc     total2
+        sta     total2
+
+        lda     cardCountMed,x
+        adc     total2+1
+        sta     total2+1
+
+        lda     cardCountHi,x
+        adc     total2+2
+        sta     total2+2
+
+        lda     #$00
+        adc     total2+3
+        sta     total2+3
+
         rts
 
 
@@ -481,25 +527,25 @@ endOfLoop:
         jsr     convert4BytesToDecimal
 
         ; test 1234567890
-        lda     #$d2
-        sta     decBuffer
-        lda     #$02
-        sta     decBuffer+1
-        lda     #$96
-        sta     decBuffer+2
-        lda     #$49
-        sta     decBuffer+3
+        ; lda     #$d2
+        ; sta     decBuffer
+        ; lda     #$02
+        ; sta     decBuffer+1
+        ; lda     #$96
+        ; sta     decBuffer+2
+        ; lda     #$49
+        ; sta     decBuffer+3
 
         inc     found
 
-        ; lda     total2
-        ; sta     decBuffer
-        ; lda     total2+1
-        ; sta     decBuffer+1
-        ; lda     total2+2
-        ; sta     decBuffer+2
-        ; lda     total2+3
-        ; sta     decBuffer+3
+        lda     total2
+        sta     decBuffer
+        lda     total2+1
+        sta     decBuffer+1
+        lda     total2+2
+        sta     decBuffer+2
+        lda     total2+3
+        sta     decBuffer+3
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
