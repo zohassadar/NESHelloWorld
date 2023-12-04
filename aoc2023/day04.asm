@@ -75,6 +75,7 @@ stack:  .res    $100
 cardCountLo: .res    $100
 cardCountMed: .res    $100
 cardCountHi: .res    $100
+tallyPage: .res $100
 
 .segment "PRG"
 
@@ -265,19 +266,21 @@ isItANumber:
         rts
 
 ; end Part 2 funcs
-
-pullOutNumber:
+resetPulledNumber:
         ldx     #$00
         stx     pulledNumber
         stx     pulledNumber+1
-@pullDigit:
+        rts
+
+pullDigit:
         jsr     isItANumber
-        bcs     @NaN
+        bcs     NaN
+pullOutKnownNumber:
         sta     pulledDigits,x
         jsr     incrementOffset
         inx
-        bpl     @pullDigit
-@NaN:
+        bpl     pullDigit
+NaN:
         dex
         lda     digitTableLo,x
         sta     tmpX
@@ -469,7 +472,8 @@ readChainOfNumbers:
         stx     xStash
         jsr     isItANumber
         bcs     somethingWrong
-        jsr     pullOutNumber
+        jsr     resetPulledNumber
+        jsr     pullOutKnownNumber
         ldx     xStash
         lda     pulledNumber
         sta     tmp1,x
@@ -507,14 +511,7 @@ loop:
 somethingWrong:
         inc     errorFlag
 
-endOfLoop:
-        ; lda     winNumberCount
-        ; sta     total
-        ; lda     myNumberCount
-        ; sta     total+1
-        ; lda     currentRow
-        ; sta     total+2
-        
+endOfLoop:       
         lda     total
         sta     decBuffer
         lda     total+1
