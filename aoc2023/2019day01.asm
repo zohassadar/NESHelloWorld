@@ -53,6 +53,7 @@ hiDigitLoc: .res 2
 chunk: .res 3
 sum: .res 3
 test: .res 3
+part1Finished: .res 1
 
 ;  ------------------------------
 ;  ------------------------------
@@ -517,7 +518,12 @@ doPart1ThingToNumber:
         lda     sum+2
         sbc     #$00
         sta     sum+2
+        bcc     @breakFree
 
+        lda     part1Finished
+        bne     @skipThis
+
+        inc     part1Finished ; this happens once
         clc
         lda     sum
         adc     total
@@ -534,7 +540,32 @@ doPart1ThingToNumber:
         lda     #$00
         adc     total+3
         sta     total+3
+@skipThis:
+        clc
+        lda     sum
+        adc     total2
+        sta     total2
 
+        lda     sum+1
+        adc     total2+1
+        sta     total2+1
+
+        lda     sum+2
+        adc     total2+2
+        sta     total2+2
+
+        lda     #$00
+        adc     total2+3
+        sta     total2+3
+
+        lda     sum
+        sta     pulledNumber
+        lda     sum+1
+        sta     pulledNumber+1
+        lda     sum+2
+        sta     pulledNumber+2
+        jmp     doPart1ThingToNumber
+@breakFree:
         rts
 
 
@@ -550,6 +581,8 @@ loop:
         cmp     #newline
         beq     @incrementAndJump
         jsr     pullOutNumber
+        lda     #$00
+        sta     part1Finished
         jsr     doPart1ThingToNumber
 
 @incrementAndJump:
@@ -572,25 +605,25 @@ endOfLoop:
         jsr     convert4BytesToDecimal
 
         ; test 1234567890
-        lda     #$d2
-        sta     decBuffer
-        lda     #$02
-        sta     decBuffer+1
-        lda     #$96
-        sta     decBuffer+2
-        lda     #$49
-        sta     decBuffer+3
+        ; lda     #$d2
+        ; sta     decBuffer
+        ; lda     #$02
+        ; sta     decBuffer+1
+        ; lda     #$96
+        ; sta     decBuffer+2
+        ; lda     #$49
+        ; sta     decBuffer+3
 
         inc     found
 
-        ; lda     total2
-        ; sta     decBuffer
-        ; lda     total2+1
-        ; sta     decBuffer+1
-        ; lda     total2+2
-        ; sta     decBuffer+2
-        ; lda     total2+3
-        ; sta     decBuffer+3
+        lda     total2
+        sta     decBuffer
+        lda     total2+1
+        sta     decBuffer+1
+        lda     total2+2
+        sta     decBuffer+2
+        lda     total2+3
+        sta     decBuffer+3
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
