@@ -46,6 +46,8 @@ decResult: .res 4
 
 generalCounter: .res 1
 
+halfwayOffset: .res 2
+
 ;  ------------------------------
 ;  ------------------------------
 
@@ -239,12 +241,6 @@ multBy10TableHi:
 multBy1TableHi:
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-.macro INCREMENT_OFFSET
-        inc     offset
-        bne     :+
-        inc     offset+1
-:
-.endmacro
 
 
 
@@ -253,8 +249,11 @@ loopInit:
         sta     offset
         lda     #>data
         sta     offset+1
-
-        lda     endOfData-3 ; tail is number, newline, null, endOfData
+        lda     #<(data+halfway)
+        sta     halfwayOffset
+        lda     #>(data+halfway)
+        sta     halfwayOffset+1
+        lda     endOfData-2 ; tail is number, newline, endOfData
         sta     tmpY
 
         ldy     #$00
@@ -264,7 +263,7 @@ loop:
         beq     endOfLoop
         sta     tmpX
         cmp     tmpY
-        bne     @dontAdd
+        bne     @dontAddForPart1
         and     #$F
         clc
         adc     total
@@ -275,10 +274,45 @@ loop:
         lda     #$00
         adc     total+2
         sta     total+2
-@dontAdd:
+
+@dontAddForPart1:
+        lda     tmpX
+        cmp     (halfwayOffset),y
+        bne     @dontAddForpart2
+        and     #$F
+        clc
+        adc     total2
+        sta     total2
+        lda     #$00
+        adc     total2+1
+        sta     total2+1
+        lda     #$00
+        adc     total2+2
+        sta     total2+2
+
+@dontAddForpart2:
         lda     tmpX
         sta     tmpY
-        INCREMENT_OFFSET
+        inc     offset
+        bne     :+
+        inc     offset+1
+:
+        inc     halfwayOffset
+        bne     :+
+        inc     halfwayOffset+1
+:
+        clc
+        lda     halfwayOffset
+        cmp     #<resetPoint
+        bne     @noReset
+        lda     halfwayOffset+1
+        cmp     #>resetPoint
+        bne     @noReset
+        lda     #<data
+        sta     halfwayOffset
+        lda     #>data
+        sta     halfwayOffset+1
+@noReset:
         jmp     loop
 
 
@@ -298,25 +332,25 @@ endOfLoop:
         jsr     convert4BytesToDecimal
 
         ; test 1234567890
-        lda     #$d2
-        sta     decBuffer
-        lda     #$02
-        sta     decBuffer+1
-        lda     #$96
-        sta     decBuffer+2
-        lda     #$49
-        sta     decBuffer+3
+        ; lda     #$d2
+        ; sta     decBuffer
+        ; lda     #$02
+        ; sta     decBuffer+1
+        ; lda     #$96
+        ; sta     decBuffer+2
+        ; lda     #$49
+        ; sta     decBuffer+3
 
         inc     found
 
-        ; lda     total2
-        ; sta     decBuffer
-        ; lda     total2+1
-        ; sta     decBuffer+1
-        ; lda     total2+2
-        ; sta     decBuffer+2
-        ; lda     total2+3
-        ; sta     decBuffer+3
+        lda     total2
+        sta     decBuffer
+        lda     total2+1
+        sta     decBuffer+1
+        lda     total2+2
+        sta     decBuffer+2
+        lda     total2+3
+        sta     decBuffer+3
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
@@ -651,7 +685,6 @@ endpalette:
 .byte   newline                 ; this keeps from having to do anything funky for the first row
 data:
         .incbin "2017day01.input"
-.byte   $00
 endOfData:
 
 .segment "VECTORS": absolute
@@ -661,3 +694,8 @@ endOfData:
         .addr   irq
 
 .code
+
+resetPoint = endOfData-1
+halfway = (resetPoint-data)/2
+
+
