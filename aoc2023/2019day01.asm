@@ -46,9 +46,9 @@ decResult: .res 4
 
 generalCounter: .res 1
 
-loDigitLoc: .res 1
-medDigitLoc: .res 1
-hiDigitLoc: .res 1
+loDigitLoc: .res 2
+medDigitLoc: .res 2
+hiDigitLoc: .res 2
 
 ;  ------------------------------
 ;  ------------------------------
@@ -221,7 +221,6 @@ digitTableHi:
 digitTableLo:
         .byte   <oneDigit,<twoDigit,<threeDigit,<fourDigit,<fiveDigit,<sixDigit
 
-
 sixDigit:
         .addr   multBy100000TableLo
         .addr   multBy100000TableMed
@@ -388,7 +387,9 @@ loopInit:
         lda     #>data
         sta     offset+1
 loop:
+        ldy     #$00
         lda     (offset),y
+        beq     endOfLoop
         cmp     #newline
         beq     @incrementAndJump
         jsr     pullOutNumber
@@ -398,7 +399,7 @@ loop:
         sta     total+1
         lda     pulledNumber+2
         sta     total+2
-        jmp     endOfLoop
+        ; jmp     endOfLoop
 
 @incrementAndJump:
         jsr     incrementOffset
@@ -420,25 +421,25 @@ endOfLoop:
         jsr     convert4BytesToDecimal
 
         ; test 1234567890
-        ; lda     #$d2
-        ; sta     decBuffer
-        ; lda     #$02
-        ; sta     decBuffer+1
-        ; lda     #$96
-        ; sta     decBuffer+2
-        ; lda     #$49
-        ; sta     decBuffer+3
+        lda     #$d2
+        sta     decBuffer
+        lda     #$02
+        sta     decBuffer+1
+        lda     #$96
+        sta     decBuffer+2
+        lda     #$49
+        sta     decBuffer+3
 
         inc     found
 
-        lda     total2
-        sta     decBuffer
-        lda     total2+1
-        sta     decBuffer+1
-        lda     total2+2
-        sta     decBuffer+2
-        lda     total2+3
-        sta     decBuffer+3
+        ; lda     total2
+        ; sta     decBuffer
+        ; lda     total2+1
+        ; sta     decBuffer+1
+        ; lda     total2+2
+        ; sta     decBuffer+2
+        ; lda     total2+3
+        ; sta     decBuffer+3
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
