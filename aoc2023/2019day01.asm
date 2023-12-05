@@ -50,6 +50,10 @@ loDigitLoc: .res 2
 medDigitLoc: .res 2
 hiDigitLoc: .res 2
 
+chunk: .res 3
+sum: .res 3
+test: .res 3
+
 ;  ------------------------------
 ;  ------------------------------
 
@@ -380,6 +384,159 @@ pullOutNumber:
         ldy     #$00
         rts
 
+; def bin_division_by_3(x):
+;     original = x
+;     sum = 1
+;     r = 0
+;     while x > 3:
+;         q = x >> 2 # divide by 4
+;         r = x & 3 # last 2 bits
+;         sum+=q # our sum
+;         # print(f"{x=} {q=} {r=} {sum=}")
+;         x = q + r
+;     test = sum * 3
+;     return sum - 1 if test > original else sum
+
+doPart1ThingToNumber:
+; setSum
+        ldx     #$01
+        stx     sum
+        dex
+        stx     sum+1
+        stx     sum+2
+
+; set chunk
+        lda     pulledNumber
+        sta     chunk
+        lda     pulledNumber+1
+        sta     chunk+1
+        lda     pulledNumber+2
+        sta     chunk+2
+
+@doItAgain:
+; set remainder
+        lda     chunk
+        and     #$03
+        pha
+
+; chunk >> 2
+        lsr     chunk+2
+        ror     chunk+1
+        ror     chunk
+        
+        lsr     chunk+2
+        ror     chunk+1
+        ror     chunk
+
+; add chunk to sum
+        clc
+        lda     chunk
+        adc     sum
+        sta     sum
+
+        lda     chunk+1
+        adc     sum+1
+        sta     sum+1
+
+        lda     chunk+2
+        adc     sum+2
+        sta     sum+2
+
+; add remainder to chunk
+        clc
+        pla
+        adc     chunk
+        sta     chunk
+
+        lda     #$00
+        adc     chunk+1
+        sta     chunk+1
+
+        lda     #$00
+        adc     chunk+2
+        sta     chunk+2
+
+; subtract 4 to test if loop
+        sec
+        lda     chunk
+        sbc     #$04
+        lda     chunk+1
+        sbc     #$00
+        lda     chunk+2
+        sbc     #$00
+        bcs     @doItAgain
+
+@testNumber:
+        lda     sum
+        sta     test
+        lda     sum+1
+        sta     test+1
+        lda     sum+2
+        sta     test+2
+
+        ; multiply by 2
+        asl     test
+        rol     test+1
+        rol     test+2
+
+        ; add again to make * 3
+        clc
+        lda     sum
+        adc     test
+        sta     test
+
+        lda     sum+1
+        adc     test+1
+        sta     test+1
+
+        lda     sum+2
+        adc     test+2
+        sta     test+2
+
+        ; actual test is happening here
+        sec
+        lda     pulledNumber
+        sbc     test
+        lda     pulledNumber+1
+        sbc     test+1
+        lda     pulledNumber+2
+        sbc     test+2
+        ; carry is clear if test is bigger
+        
+
+        ; shortcut to correct rounding and to subtract 2
+
+        lda     sum
+        sbc     #$02
+        sta     sum
+
+        lda     sum+1
+        sbc     #$00
+        sta     sum+1
+
+        lda     sum+2
+        sbc     #$00
+        sta     sum+2
+
+        clc
+        lda     sum
+        adc     total
+        sta     total
+
+        lda     sum+1
+        adc     total+1
+        sta     total+1
+
+        lda     sum+2
+        adc     total+2
+        sta     total+2
+
+        lda     #$00
+        adc     total+3
+        sta     total+3
+
+        rts
+
 
 loopInit:
         lda     #<data
@@ -393,13 +550,7 @@ loop:
         cmp     #newline
         beq     @incrementAndJump
         jsr     pullOutNumber
-        lda     pulledNumber
-        sta     total
-        lda     pulledNumber+1
-        sta     total+1
-        lda     pulledNumber+2
-        sta     total+2
-        ; jmp     endOfLoop
+        jsr     doPart1ThingToNumber
 
 @incrementAndJump:
         jsr     incrementOffset
