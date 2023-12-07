@@ -21,6 +21,7 @@ seedStash: .res 2
 mapsStart: .res 2
 
 seed:   .res    5
+seed_range: .res 5
 
 trans:  .res    5
 start:  .res    5
@@ -816,7 +817,7 @@ runThroughMap:
 
 processSeed:
         jsr     findDigitOrNewline
-        bcc     @clearNReturn
+        bcc     clearNReturn2
         jsr     pullOutNumber
         lda     pulledNumber
         sta     seed
@@ -836,9 +837,45 @@ processSeed:
 
         jmp     setCarryAndReturn
 
-@clearNReturn:
+clearNReturn2:
         clc
         rts
+
+processSeedRange:
+        ; pull two instead of one
+        jsr     findDigitOrNewline
+        bcc     clearNReturn2
+        jsr     pullOutNumber
+        lda     pulledNumber
+        sta     seed
+        lda     pulledNumber+1
+        sta     seed+1
+        lda     pulledNumber+2
+        sta     seed+2
+        lda     pulledNumber+3
+        sta     seed+3
+        lda     pulledNumber+4
+        sta     seed+4
+
+        jsr     findDigitOrNewline
+        jsr     pullOutNumber
+        lda     pulledNumber
+        sta     seed_range
+        lda     pulledNumber+1
+        sta     seed_range+1
+        lda     pulledNumber+2
+        sta     seed_range+2
+        lda     pulledNumber+3
+        sta     seed_range+3
+        lda     pulledNumber+4
+        sta     seed_range+4
+
+        jsr     stashSeed
+        jsr     mapRestore
+
+        jsr     runThroughMap
+
+        jmp     setCarryAndReturn
 
 mapRestore:
         lda     mapsStart
@@ -878,20 +915,30 @@ loopInit:
         sta     mapsStart
         lda     offset+1
         sta     mapsStart+1
-
-        jsr     seedRestore
-loop:
-        ldy     #$00
-        lda     (offset),y
 @loop:
         jsr     seedRestore
         jsr     processSeed
-        bcc     endOfLoop
+        bcc     part2init
         INCREMENT_OFFSET
-        jmp     loop
+        jmp     @loop
 
 somethingWrong:
         inc     errorFlag
+
+part2init:
+        lda     #<(data+7)
+        sta     seedStash
+
+        lda     #>(data+7)
+        sta     seedStash+1
+        jsr     mapRestore
+@loop:
+        jsr     seedRestore
+        jsr     processSeedRange
+        bcc     endOfLoop
+        INCREMENT_OFFSET
+        jmp     @loop 
+
 
 endOfLoop:
         inc     found
@@ -982,8 +1029,9 @@ renderStuff:
         sta     PPUADDR
         ldx     #<stringAnswer
         ldy     #>stringAnswer
-        lda     total+4
         jsr     sendWordToPPU
+        ; lda     total+4
+        ; jsr     twoDigitsToPPU
         lda     total+3
         jsr     twoDigitsToPPU
         lda     total+2
@@ -1035,8 +1083,8 @@ renderStuff:
         ldx     #<stringAnswer
         ldy     #>stringAnswer
         jsr     sendWordToPPU
-        lda     total2+4
-        jsr     sendWordToPPU
+        ; lda     total2+4
+        ; jsr     twoDigitsToPPU
         lda     total2+3
         jsr     twoDigitsToPPU
         lda     total2+2
