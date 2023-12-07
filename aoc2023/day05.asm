@@ -206,256 +206,256 @@ digitTables:
 
 
 thirteenDigitHi:
-        .byte >multBy1000000000000Table0
-        .byte >multBy1000000000000Table1
-        .byte >multBy1000000000000Table2
-        .byte >multBy1000000000000Table3
-        .byte >multBy1000000000000Table4
+        .byte   >multBy1000000000000Table0
+        .byte   >multBy1000000000000Table1
+        .byte   >multBy1000000000000Table2
+        .byte   >multBy1000000000000Table3
+        .byte   >multBy1000000000000Table4
 twelveDigitHi:
-        .byte >multBy100000000000Table0
-        .byte >multBy100000000000Table1
-        .byte >multBy100000000000Table2
-        .byte >multBy100000000000Table3
-        .byte >multBy100000000000Table4
+        .byte   >multBy100000000000Table0
+        .byte   >multBy100000000000Table1
+        .byte   >multBy100000000000Table2
+        .byte   >multBy100000000000Table3
+        .byte   >multBy100000000000Table4
 elevenDigitHi:
-        .byte >multBy10000000000Table0
-        .byte >multBy10000000000Table1
-        .byte >multBy10000000000Table2
-        .byte >multBy10000000000Table3
-        .byte >multBy10000000000Table4
+        .byte   >multBy10000000000Table0
+        .byte   >multBy10000000000Table1
+        .byte   >multBy10000000000Table2
+        .byte   >multBy10000000000Table3
+        .byte   >multBy10000000000Table4
 tenDigitHi:
-        .byte >multBy1000000000Table0
-        .byte >multBy1000000000Table1
-        .byte >multBy1000000000Table2
-        .byte >multBy1000000000Table3
-        .byte >multBy1000000000Table4
+        .byte   >multBy1000000000Table0
+        .byte   >multBy1000000000Table1
+        .byte   >multBy1000000000Table2
+        .byte   >multBy1000000000Table3
+        .byte   >multBy1000000000Table4
 nineDigitHi:
-        .byte >multBy100000000Table0
-        .byte >multBy100000000Table1
-        .byte >multBy100000000Table2
-        .byte >multBy100000000Table3
-        .byte >multBy100000000Table4
+        .byte   >multBy100000000Table0
+        .byte   >multBy100000000Table1
+        .byte   >multBy100000000Table2
+        .byte   >multBy100000000Table3
+        .byte   >multBy100000000Table4
 eightDigitHi:
-        .byte >multBy10000000Table0
-        .byte >multBy10000000Table1
-        .byte >multBy10000000Table2
-        .byte >multBy10000000Table3
-        .byte >multBy10000000Table4
+        .byte   >multBy10000000Table0
+        .byte   >multBy10000000Table1
+        .byte   >multBy10000000Table2
+        .byte   >multBy10000000Table3
+        .byte   >multBy10000000Table4
 sevenDigitHi:
-        .byte >multBy1000000Table0
-        .byte >multBy1000000Table1
-        .byte >multBy1000000Table2
-        .byte >multBy1000000Table3
-        .byte >multBy1000000Table4
+        .byte   >multBy1000000Table0
+        .byte   >multBy1000000Table1
+        .byte   >multBy1000000Table2
+        .byte   >multBy1000000Table3
+        .byte   >multBy1000000Table4
 sixDigitHi:
-        .byte >multBy100000Table0
-        .byte >multBy100000Table1
-        .byte >multBy100000Table2
-        .byte >multBy100000Table3
-        .byte >multBy100000Table4
+        .byte   >multBy100000Table0
+        .byte   >multBy100000Table1
+        .byte   >multBy100000Table2
+        .byte   >multBy100000Table3
+        .byte   >multBy100000Table4
 fiveDigitHi:
-        .byte >multBy10000Table0
-        .byte >multBy10000Table1
-        .byte >multBy10000Table2
-        .byte >multBy10000Table3
-        .byte >multBy10000Table4
+        .byte   >multBy10000Table0
+        .byte   >multBy10000Table1
+        .byte   >multBy10000Table2
+        .byte   >multBy10000Table3
+        .byte   >multBy10000Table4
 fourDigitHi:
-        .byte >multBy1000Table0
-        .byte >multBy1000Table1
-        .byte >multBy1000Table2
-        .byte >multBy1000Table3
-        .byte >multBy1000Table4
+        .byte   >multBy1000Table0
+        .byte   >multBy1000Table1
+        .byte   >multBy1000Table2
+        .byte   >multBy1000Table3
+        .byte   >multBy1000Table4
 threeDigitHi:
-        .byte >multBy100Table0
-        .byte >multBy100Table1
-        .byte >multBy100Table2
-        .byte >multBy100Table3
-        .byte >multBy100Table4
+        .byte   >multBy100Table0
+        .byte   >multBy100Table1
+        .byte   >multBy100Table2
+        .byte   >multBy100Table3
+        .byte   >multBy100Table4
 twoDigitHi:
-        .byte >multBy10Table0
-        .byte >multBy10Table1
-        .byte >multBy10Table2
-        .byte >multBy10Table3
-        .byte >multBy10Table4
+        .byte   >multBy10Table0
+        .byte   >multBy10Table1
+        .byte   >multBy10Table2
+        .byte   >multBy10Table3
+        .byte   >multBy10Table4
 oneDigitHi:
-        .byte >multBy1Table0
-        .byte >multBy1Table1
-        .byte >multBy1Table2
-        .byte >multBy1Table3
-        .byte >multBy1Table4
+        .byte   >multBy1Table0
+        .byte   >multBy1Table1
+        .byte   >multBy1Table2
+        .byte   >multBy1Table3
+        .byte   >multBy1Table4
 
 thirteenDigitLo:
-        .byte <multBy1000000000000Table0
-        .byte <multBy1000000000000Table1
-        .byte <multBy1000000000000Table2
-        .byte <multBy1000000000000Table3
-        .byte <multBy1000000000000Table4
+        .byte   <multBy1000000000000Table0
+        .byte   <multBy1000000000000Table1
+        .byte   <multBy1000000000000Table2
+        .byte   <multBy1000000000000Table3
+        .byte   <multBy1000000000000Table4
 twelveDigitLo:
-        .byte <multBy100000000000Table0
-        .byte <multBy100000000000Table1
-        .byte <multBy100000000000Table2
-        .byte <multBy100000000000Table3
-        .byte <multBy100000000000Table4
+        .byte   <multBy100000000000Table0
+        .byte   <multBy100000000000Table1
+        .byte   <multBy100000000000Table2
+        .byte   <multBy100000000000Table3
+        .byte   <multBy100000000000Table4
 elevenDigitLo:
-        .byte <multBy10000000000Table0
-        .byte <multBy10000000000Table1
-        .byte <multBy10000000000Table2
-        .byte <multBy10000000000Table3
-        .byte <multBy10000000000Table4
+        .byte   <multBy10000000000Table0
+        .byte   <multBy10000000000Table1
+        .byte   <multBy10000000000Table2
+        .byte   <multBy10000000000Table3
+        .byte   <multBy10000000000Table4
 tenDigitLo:
-        .byte <multBy1000000000Table0
-        .byte <multBy1000000000Table1
-        .byte <multBy1000000000Table2
-        .byte <multBy1000000000Table3
-        .byte <multBy1000000000Table4
+        .byte   <multBy1000000000Table0
+        .byte   <multBy1000000000Table1
+        .byte   <multBy1000000000Table2
+        .byte   <multBy1000000000Table3
+        .byte   <multBy1000000000Table4
 nineDigitLo:
-        .byte <multBy100000000Table0
-        .byte <multBy100000000Table1
-        .byte <multBy100000000Table2
-        .byte <multBy100000000Table3
-        .byte <multBy100000000Table4
+        .byte   <multBy100000000Table0
+        .byte   <multBy100000000Table1
+        .byte   <multBy100000000Table2
+        .byte   <multBy100000000Table3
+        .byte   <multBy100000000Table4
 eightDigitLo:
-        .byte <multBy10000000Table0
-        .byte <multBy10000000Table1
-        .byte <multBy10000000Table2
-        .byte <multBy10000000Table3
-        .byte <multBy10000000Table4
+        .byte   <multBy10000000Table0
+        .byte   <multBy10000000Table1
+        .byte   <multBy10000000Table2
+        .byte   <multBy10000000Table3
+        .byte   <multBy10000000Table4
 sevenDigitLo:
-        .byte <multBy1000000Table0
-        .byte <multBy1000000Table1
-        .byte <multBy1000000Table2
-        .byte <multBy1000000Table3
-        .byte <multBy1000000Table4
+        .byte   <multBy1000000Table0
+        .byte   <multBy1000000Table1
+        .byte   <multBy1000000Table2
+        .byte   <multBy1000000Table3
+        .byte   <multBy1000000Table4
 sixDigitLo:
-        .byte <multBy100000Table0
-        .byte <multBy100000Table1
-        .byte <multBy100000Table2
-        .byte <multBy100000Table3
-        .byte <multBy100000Table4
+        .byte   <multBy100000Table0
+        .byte   <multBy100000Table1
+        .byte   <multBy100000Table2
+        .byte   <multBy100000Table3
+        .byte   <multBy100000Table4
 fiveDigitLo:
-        .byte <multBy10000Table0
-        .byte <multBy10000Table1
-        .byte <multBy10000Table2
-        .byte <multBy10000Table3
-        .byte <multBy10000Table4
+        .byte   <multBy10000Table0
+        .byte   <multBy10000Table1
+        .byte   <multBy10000Table2
+        .byte   <multBy10000Table3
+        .byte   <multBy10000Table4
 fourDigitLo:
-        .byte <multBy1000Table0
-        .byte <multBy1000Table1
-        .byte <multBy1000Table2
-        .byte <multBy1000Table3
-        .byte <multBy1000Table4
+        .byte   <multBy1000Table0
+        .byte   <multBy1000Table1
+        .byte   <multBy1000Table2
+        .byte   <multBy1000Table3
+        .byte   <multBy1000Table4
 threeDigitLo:
-        .byte <multBy100Table0
-        .byte <multBy100Table1
-        .byte <multBy100Table2
-        .byte <multBy100Table3
-        .byte <multBy100Table4
+        .byte   <multBy100Table0
+        .byte   <multBy100Table1
+        .byte   <multBy100Table2
+        .byte   <multBy100Table3
+        .byte   <multBy100Table4
 twoDigitLo:
-        .byte <multBy10Table0
-        .byte <multBy10Table1
-        .byte <multBy10Table2
-        .byte <multBy10Table3
-        .byte <multBy10Table4
+        .byte   <multBy10Table0
+        .byte   <multBy10Table1
+        .byte   <multBy10Table2
+        .byte   <multBy10Table3
+        .byte   <multBy10Table4
 oneDigitLo:
-        .byte <multBy1Table0
-        .byte <multBy1Table1
-        .byte <multBy1Table2
-        .byte <multBy1Table3
-        .byte <multBy1Table4
+        .byte   <multBy1Table0
+        .byte   <multBy1Table1
+        .byte   <multBy1Table2
+        .byte   <multBy1Table3
+        .byte   <multBy1Table4
 
 
 
 
-      ;900000000000
+        ;900000000000
 multBy1000000000000Table4:
-        .byte $00,$e8,$d1,$ba,$a3,$8c,$74,$5d,$46,$2f
+        .byte   $00,$e8,$d1,$ba,$a3,$8c,$74,$5d,$46,$2f
 multBy1000000000000Table3:
-        .byte $00,$d4,$a9,$7d,$52,$27,$fb,$d0,$a5,$79
+        .byte   $00,$d4,$a9,$7d,$52,$27,$fb,$d0,$a5,$79
 multBy1000000000000Table2:
-        .byte $00,$a5,$4a,$ef,$94,$39,$de,$83,$28,$cd
+        .byte   $00,$a5,$4a,$ef,$94,$39,$de,$83,$28,$cd
 multBy1000000000000Table1:
-        .byte $00,$10,$20,$30,$40,$50,$60,$70,$80,$90
+        .byte   $00,$10,$20,$30,$40,$50,$60,$70,$80,$90
 
 multBy100000000000Table4:
-        .byte $00,$17,$2e,$45,$5d,$74,$8b,$a2,$ba,$d1
+        .byte   $00,$17,$2e,$45,$5d,$74,$8b,$a2,$ba,$d1
 multBy100000000000Table3:
-        .byte $00,$48,$90,$d9,$21,$6a,$b2,$fb,$43,$8c
+        .byte   $00,$48,$90,$d9,$21,$6a,$b2,$fb,$43,$8c
 multBy100000000000Table2:
-        .byte $00,$76,$ed,$64,$db,$52,$c9,$40,$b7,$2e
+        .byte   $00,$76,$ed,$64,$db,$52,$c9,$40,$b7,$2e
 multBy100000000000Table1:
-        .byte $00,$e8,$d0,$b8,$a0,$88,$70,$58,$40,$28
+        .byte   $00,$e8,$d0,$b8,$a0,$88,$70,$58,$40,$28
 
 multBy10000000000Table4:
-        .byte $00,$02,$04,$06,$09,$0b,$0d,$10,$12,$14
+        .byte   $00,$02,$04,$06,$09,$0b,$0d,$10,$12,$14
 multBy10000000000Table3:
-        .byte $00,$54,$a8,$fc,$50,$a4,$f8,$4c,$a0,$f4
+        .byte   $00,$54,$a8,$fc,$50,$a4,$f8,$4c,$a0,$f4
 multBy10000000000Table2:
-        .byte $00,$0b,$17,$23,$2f,$3b,$47,$53,$5f,$6b
+        .byte   $00,$0b,$17,$23,$2f,$3b,$47,$53,$5f,$6b
 multBy10000000000Table1:
-        .byte $00,$e4,$c8,$ac,$90,$74,$58,$3c,$20,$04
+        .byte   $00,$e4,$c8,$ac,$90,$74,$58,$3c,$20,$04
 
 multBy1000000000Table4:
-        .byte $00,$00,$00,$00,$00,$01,$01,$01,$01,$02
+        .byte   $00,$00,$00,$00,$00,$01,$01,$01,$01,$02
 multBy1000000000Table3:
-        .byte $00,$3b,$77,$b2,$ee,$2a,$65,$a1,$dc,$18
+        .byte   $00,$3b,$77,$b2,$ee,$2a,$65,$a1,$dc,$18
 multBy1000000000Table2:
-        .byte $00,$9a,$35,$d0,$6b,$05,$a0,$3b,$d6,$71
+        .byte   $00,$9a,$35,$d0,$6b,$05,$a0,$3b,$d6,$71
 multBy1000000000Table1:
-        .byte $00,$ca,$94,$5e,$28,$f2,$bc,$86,$50,$1a
+        .byte   $00,$ca,$94,$5e,$28,$f2,$bc,$86,$50,$1a
 
 multBy100000000Table3:
-        .byte $00,$05,$0b,$11,$17,$1d,$23,$29,$2f,$35
+        .byte   $00,$05,$0b,$11,$17,$1d,$23,$29,$2f,$35
 multBy100000000Table2:
-        .byte $00,$f5,$eb,$e1,$d7,$cd,$c3,$b9,$af,$a4
+        .byte   $00,$f5,$eb,$e1,$d7,$cd,$c3,$b9,$af,$a4
 multBy100000000Table1:
-        .byte $00,$e1,$c2,$a3,$84,$65,$46,$27,$08,$e9
+        .byte   $00,$e1,$c2,$a3,$84,$65,$46,$27,$08,$e9
 
 multBy10000000Table3:
-        .byte $00,$00,$01,$01,$02,$02,$03,$04,$04,$05
+        .byte   $00,$00,$01,$01,$02,$02,$03,$04,$04,$05
 multBy10000000Table2:
-        .byte $00,$98,$31,$c9,$62,$fa,$93,$2c,$c4,$5d
+        .byte   $00,$98,$31,$c9,$62,$fa,$93,$2c,$c4,$5d
 multBy10000000Table1:
-        .byte $00,$96,$2d,$c3,$5a,$f0,$87,$1d,$b4,$4a
+        .byte   $00,$96,$2d,$c3,$5a,$f0,$87,$1d,$b4,$4a
 multBy10000000Table0:
-        .byte $00,$80,$00,$80,$00,$80,$00,$80,$00,$80
+        .byte   $00,$80,$00,$80,$00,$80,$00,$80,$00,$80
 
 multBy1000000Table2:
-        .byte $00,$0f,$1e,$2d,$3d,$4c,$5b,$6a,$7a,$89
+        .byte   $00,$0f,$1e,$2d,$3d,$4c,$5b,$6a,$7a,$89
 multBy1000000Table1:
-        .byte $00,$42,$84,$c6,$09,$4b,$8d,$cf,$12,$54
+        .byte   $00,$42,$84,$c6,$09,$4b,$8d,$cf,$12,$54
 multBy1000000Table0:
-        .byte $00,$40,$80,$c0,$00,$40,$80,$c0,$00,$40
+        .byte   $00,$40,$80,$c0,$00,$40,$80,$c0,$00,$40
 
 multBy100000Table2:
-        .byte $00,$01,$03,$04,$06,$07,$09,$0a,$0c,$0d
+        .byte   $00,$01,$03,$04,$06,$07,$09,$0a,$0c,$0d
 multBy100000Table1:
-        .byte $00,$86,$0d,$93,$1a,$a1,$27,$ae,$35,$bb
+        .byte   $00,$86,$0d,$93,$1a,$a1,$27,$ae,$35,$bb
 multBy100000Table0:
-        .byte $00,$a0,$40,$e0,$80,$20,$c0,$60,$00,$a0
+        .byte   $00,$a0,$40,$e0,$80,$20,$c0,$60,$00,$a0
 
 multBy10000Table2:
-        .byte $00,$00,$00,$00,$00,$00,$00,$01,$01,$01
+        .byte   $00,$00,$00,$00,$00,$00,$00,$01,$01,$01
 multBy10000Table1:
-        .byte $00,$27,$4e,$75,$9c,$c3,$ea,$11,$38,$5f
+        .byte   $00,$27,$4e,$75,$9c,$c3,$ea,$11,$38,$5f
 multBy10000Table0:
-        .byte $00,$10,$20,$30,$40,$50,$60,$70,$80,$90
+        .byte   $00,$10,$20,$30,$40,$50,$60,$70,$80,$90
 
 multBy1000Table1:
-        .byte $00,$03,$07,$0b,$0f,$13,$17,$1b,$1f,$23
+        .byte   $00,$03,$07,$0b,$0f,$13,$17,$1b,$1f,$23
 multBy1000Table0:
-        .byte $00,$e8,$d0,$b8,$a0,$88,$70,$58,$40,$28
+        .byte   $00,$e8,$d0,$b8,$a0,$88,$70,$58,$40,$28
 
 multBy100Table1:
-        .byte $00,$00,$00,$01,$01,$01,$02,$02,$03,$03
+        .byte   $00,$00,$00,$01,$01,$01,$02,$02,$03,$03
 multBy100Table0:
-        .byte $00,$64,$c8,$2c,$90,$f4,$58,$bc,$20,$84
+        .byte   $00,$64,$c8,$2c,$90,$f4,$58,$bc,$20,$84
 
 
 multBy10Table0:
-        .byte $00,$0a,$14,$1e,$28,$32,$3c,$46,$50,$5a
+        .byte   $00,$0a,$14,$1e,$28,$32,$3c,$46,$50,$5a
 
 multBy1Table0:
-        .byte $00,$01,$02,$03,$04,$05,$06,$07,$08,$09
+        .byte   $00,$01,$02,$03,$04,$05,$06,$07,$08,$09
 
 multBy1Table1:
 multBy1Table2:
@@ -484,7 +484,7 @@ multBy1000000000Table0:
 multBy10000000000Table0:
 multBy100000000000Table0:
 multBy1000000000000Table0:
-        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 setCarryAndReturn:
         sec
@@ -600,12 +600,12 @@ pullOutNumber:
 
 
 findColonOrEOF:
-        ldy   #$00
+        ldy     #$00
 @loop:
-        lda    (offset),y
-        beq    @clearNReturn
-        cmp    #$3a
-        beq    @setNReturn
+        lda     (offset),y
+        beq     @clearNReturn
+        cmp     #$3a
+        beq     @setNReturn
         INCREMENT_OFFSET
         jmp     @loop
 @setNReturn:
@@ -617,10 +617,10 @@ findColonOrEOF:
 
 
 seedRestore:
-        lda seedStash
-        sta offset
-        lda seedStash+1
-        sta offset
+        lda     seedStash
+        sta     offset
+        lda     seedStash+1
+        sta     offset
         rts
 
 loopInit:
@@ -1040,7 +1040,7 @@ endpalette:
 data:
         .incbin "day05.input"
 endOfData:
-        .byte $00
+        .byte   $00
 
 .segment "VECTORS": absolute
 
@@ -1050,7 +1050,7 @@ endOfData:
 
 .code
 
-resetPoint = endOfData-1
-halfway = (resetPoint-data)/2
+resetPoint      = endOfData-1
+halfway         = (resetPoint-data)/2
 
 
