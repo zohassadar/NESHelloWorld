@@ -16,6 +16,8 @@ pulledDigits: .res 13
 found:  .res    1
 
 offset: .res    2
+seedStash: .res 2
+mapsStart: .res 2
 
 total:  .res    5
 total2: .res    5
@@ -498,13 +500,6 @@ isItANumber:
         cmp     #$A
         rts
 
-; end Part 2 funcs
-incrementOffset:
-        inc     offset
-        bne     @ret
-        inc     offset+1
-@ret:   rts
-
 pullOutNumber:
         ldx     #$00
         stx     pulledNumber
@@ -517,7 +512,7 @@ pullOutNumber:
         bcs     @NaN
         sta     pulledDigits,x
 
-        jsr     incrementOffset
+        INCREMENT_OFFSET
         inx
         bpl     @pullDigit
 @NaN:
@@ -602,30 +597,60 @@ pullOutNumber:
 @ret:
         ldy     #$00
         rts
-testDigit:
-        .byte "1010169420666"
-        .byte $00
+
+
+findColonOrEOF:
+        ldy   #$00
+@loop:
+        lda    (offset),y
+        beq    @clearNReturn
+        cmp    #$3a
+        beq    @setNReturn
+        INCREMENT_OFFSET
+        jmp     @loop
+@setNReturn:
+        sec
+        rts
+@clearNReturn:
+        clc
+        rts
+
+
+seedRestore:
+        lda seedStash
+        sta offset
+        lda seedStash+1
+        sta offset
+        rts
+
 loopInit:
-        lda     #<testDigit
+        lda     #<(data+7)
         sta     offset
-        lda     #>testDigit
+        sta     seedStash
+
+        lda     #>(data+7)
         sta     offset+1
+        sta     seedStash+1
+
+        jsr     findColonOrEOF
+
+        INCREMENT_OFFSET
+
+        lda     offset
+        sta     mapsStart
+        lda     offset+1
+        sta     mapsStart+1
+
+        jsr     seedRestore
 loop:
         ldy     #$00
         lda     (offset),y
-        lda     #$FF
-        sta     total
 @loop:
-        jsr     pullOutNumber
-        dec     total
-        bne     @loop
-        
-        jmp     endOfLoop
-        cmp     #newline
-        beq     @incrementAndJump
-
+        jsr     findColonOrEOF
+        bcc     endOfLoop
+        inc     total
 @incrementAndJump:
-        jsr     incrementOffset
+        INCREMENT_OFFSET
         jmp     loop
 
 somethingWrong:
