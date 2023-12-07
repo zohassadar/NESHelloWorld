@@ -110,6 +110,39 @@ newline         = $0a
 :
 .endmacro
 
+.macro subtract length, this, that, store
+; subtracts this from that and optionally stores
+        sec
+.repeat length,pointer
+        lda that+pointer
+        sbc this+pointer
+.ifnblank store
+        sta store+pointer
+.endif
+.endrepeat
+.endmacro
+
+.macro add length, this, that, store
+; add this to that and optionally stores
+        clc
+.repeat length,pointer
+        lda that+pointer
+        adc this+pointer
+.ifnblank store
+        sta store+pointer
+.endif
+.endrepeat
+.endmacro
+
+.macro copy length, here, there
+; copies from here to there
+.repeat length,pointer
+        lda here+pointer
+        sta there+pointer
+.endrepeat
+.endmacro
+
+
 compareBytes:
 bytesFor1t:
         .byte   $00,$10,$a5,$d4,$e8
@@ -790,116 +823,28 @@ runThroughMap2:
 
 @startPlusRangeGreaterThanSeed:
 ; end = stop if stop < xlate_stop else xlate_stop
-        clc
-        lda     stop+0
-        sbc     xlate_stop+0
-        lda     stop+1
-        sbc     xlate_stop+1
-        lda     stop+2
-        sbc     xlate_stop+2
-        lda     stop+3
-        sbc     xlate_stop+3
-        lda     stop+4
-        sbc     xlate_stop+4
+        subtract 5, xlate_stop, stop
         bcc     @setEndToStop
 
 ;       set end to xlate_stop
-        lda     xlate_stop+0
-        sta     end_+0
-        lda     xlate_stop+1
-        sta     end_+1
-        lda     xlate_stop+2
-        sta     end_+2
-        lda     xlate_stop+3
-        sta     end_+3
-        lda     xlate_stop+4
-        sta     end_+4
-        jmp     @endSet
+        copy    5, xlate_stop, end_
 
 @setEndToStop:
-        lda     stop+0
-        sta     end_+0
-        lda     stop+1
-        sta     end_+1
-        lda     stop+2
-        sta     end_+2
-        lda     stop+3
-        sta     end_+3
-        lda     stop+4
-        sta     end_+4
+        copy    5, stop, end_
+
 @endSet:
 
 ; set bump
-        sec
-        lda     seed+0
-        sbc     start+0
-        sta     bump+0
-        lda     seed+1
-        sbc     start+1
-        sta     bump+1
-        lda     seed+2
-        sbc     start+2
-        sta     bump+2
-        lda     seed+3
-        sbc     start+3
-        sta     bump+3
-        lda     seed+4
-        sbc     start+4
-        sta     bump+4
+        subtract 5, start, seed, bump
 
 ; set new_span
-        sec
-        lda     end_+0
-        sbc     seed+0
-        sta     new_span+0
-        lda     end_+1
-        sbc     seed+1
-        sta     new_span+1
-        lda     end_+2
-        sbc     seed+2
-        sta     new_span+2
-        lda     end_+3
-        sbc     seed+3
-        sta     new_span+3
-        lda     end_+4
-        sbc     seed+4
-        sta     new_span+4
+        subtract 5, seed, end_, new_span
 
         jsr     pushOffsetNewSeedAndStop
         
-        clc
-        lda     trans+0
-        adc     bump+0
-        sta     seed+0
-        lda     trans+1
-        adc     bump+1
-        sta     seed+1
-        lda     trans+2
-        adc     bump+2
-        sta     seed+2
-        lda     trans+3
-        adc     bump+3
-        sta     seed+3
-        lda     trans+4
-        adc     bump+4
-        sta     seed+4
+        add     5, bump, trans, seed
 
-        clc
-        lda     seed+0
-        adc     new_span+0
-        sta     stop+0
-        lda     seed+1
-        adc     new_span+1
-        sta     stop+1
-        lda     seed+2
-        adc     new_span+2
-        sta     stop+2
-        lda     seed+3
-        adc     new_span+3
-        sta     stop+3
-        lda     seed+4
-        adc     new_span+4
-        sta     stop+4
+        add     5, new_span, seed, stop
         jsr     pushOffsetNewSeedAndStop
         jsr     runThroughMap2
         jsr     pullStopSeedAndOffset
@@ -945,31 +890,12 @@ runThroughMap:
         beq     @storeSeedAnyway
 
 @notZero:
-        sec
-        lda     seed
-        sbc     total
-        lda     seed+1
-        sbc     total+1
-        lda     seed+2
-        sbc     total+2
-        lda     seed+3
-        sbc     total+3
-        lda     seed+4
-        sbc     total+4
+        subtract 5, total, seed
         bcs     @ret  ; return if seed is bigger
 
 @storeSeedAnyway:
 ; store seed as total otherwise
-        lda     seed
-        sta     total
-        lda     seed+1
-        sta     total+1
-        lda     seed+2
-        sta     total+2
-        lda     seed+3
-        sta     total+3
-        lda     seed+4
-        sta     total+4
+        copy    5,seed,total
 @ret:   rts
 @notEnd:
         jsr     pullMapNumbers
@@ -981,22 +907,7 @@ runThroughMap:
         bcs     @seedGreaterThanOrEqualToStartPlusRange
         ;         return trans + (seed-start)
         ;     }
-        clc
-        lda     trans
-        adc     bump
-        sta     seed
-        lda     trans+1
-        adc     bump+1
-        sta     seed+1
-        lda     trans+2
-        adc     bump+2
-        sta     seed+2
-        lda     trans+3
-        adc     bump+3
-        sta     seed+3
-        lda     trans+4
-        adc     bump+4
-        sta     seed+4
+        add     5, bump, trans, seed
         jsr     findColonOrEOF ; Skip the rest of this group
         jmp     runThroughMap
 
@@ -1008,16 +919,7 @@ processSeed:
         jsr     findDigitOrNewline
         bcc     clearNReturn2
         jsr     pullOutNumber
-        lda     pulledNumber
-        sta     seed
-        lda     pulledNumber+1
-        sta     seed+1
-        lda     pulledNumber+2
-        sta     seed+2
-        lda     pulledNumber+3
-        sta     seed+3
-        lda     pulledNumber+4
-        sta     seed+4
+        copy    5, pulledNumber, seed
 
         jsr     stashSeed
         jsr     mapRestore
@@ -1138,31 +1040,12 @@ part2init:
 
 endOfLoop:
         inc     found
-
-        lda     total
-        sta     decBuffer
-        lda     total+1
-        sta     decBuffer+1
-        lda     total+2
-        sta     decBuffer+2
-        lda     total+3
-        sta     decBuffer+3
-        lda     total+4
-        sta     decBuffer+4
+        copy    5, total, decBuffer
 
         ldx     #result1DecimalOut
         jsr     convert4BytesToDecimal
 
-        lda     total2
-        sta     decBuffer
-        lda     total2+1
-        sta     decBuffer+1
-        lda     total2+2
-        sta     decBuffer+2
-        lda     total2+3
-        sta     decBuffer+3
-        lda     total2+4
-        sta     decBuffer+4
+        copy    5, total2, decBuffer
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
@@ -1174,98 +1057,28 @@ loop4Ever:
 
 pullMapNumbers:
         jsr     pullOutNumber
-
-        lda     pulledNumber
-        sta     trans
-        lda     pulledNumber+1
-        sta     trans+1
-        lda     pulledNumber+2
-        sta     trans+2
-        lda     pulledNumber+3
-        sta     trans+3
-        lda     pulledNumber+4
-        sta     trans+4
+        copy    5, pulledNumber, trans
 
         jsr     findDigitOrEOF
         jsr     pullOutNumber
-
-        lda     pulledNumber
-        sta     start
-        lda     pulledNumber+1
-        sta     start+1
-        lda     pulledNumber+2
-        sta     start+2
-        lda     pulledNumber+3
-        sta     start+3
-        lda     pulledNumber+4
-        sta     start+4
-        
+        copy    5, pulledNumber, start
         jsr     findDigitOrEOF
         jsr     pullOutNumber
 
-        lda     pulledNumber
-        sta     range
-        lda     pulledNumber+1
-        sta     range+1
-        lda     pulledNumber+2
-        sta     range+2
-        lda     pulledNumber+3
-        sta     range+3
-        lda     pulledNumber+4
-        sta     range+4
+        copy    5, pulledNumber, range
         rts
 
 subtractStartFromSeedAndSaveToBump:
-        sec
-        lda     seed
-        sbc     start
-        sta     bump
-        lda     seed+1
-        sbc     start+1
-        sta     bump+1
-        lda     seed+2
-        sbc     start+2
-        sta     bump+2
-        lda     seed+3
-        sbc     start+3
-        sta     bump+3
-        lda     seed+4
-        sbc     start+4
-        sta     bump+4
+        subtract 5, start, seed, bump
         rts
 
 addStartToRangeAndSaveToXlateStop:
-        clc
-        lda     start
-        adc     range
-        sta     xlate_stop
-        lda     start+1
-        adc     range+1
-        sta     xlate_stop+1
-        lda     start+2
-        adc     range+2
-        sta     xlate_stop+2
-        lda     start+3
-        adc     range+3
-        sta     xlate_stop+3
-        lda     start+4
-        adc     range+4
-        sta     xlate_stop+4
+        add     5, start, range, xlate_stop
         rts
 
 
 subtractXlateStopFromSeed:
-        sec
-        lda     seed
-        sbc     xlate_stop
-        lda     seed+1
-        sbc     xlate_stop+1
-        lda     seed+2
-        sbc     xlate_stop+2
-        lda     seed+3
-        sbc     xlate_stop+3
-        lda     seed+4
-        sbc     xlate_stop+4
+        subtract 5, xlate_stop, seed
         rts
 
 ; NMI Functions
