@@ -719,8 +719,10 @@ pullStopSeedAndOffset:
         rts
 
 runThroughMap2:
+        jsr     findColonOrEOF
+        bcs     @notEnd
         jsr     findDigitOrEOF
-        bne     @notEnd
+        bcs     @notEnd
         ; Add endgame here
 
         ; skip if seed is zero
@@ -898,10 +900,8 @@ runThroughMap2:
         lda     seed+4
         adc     new_span+4
         sta     stop+4
-
-        jsr     findColonOrEOF
+        jsr     pushOffsetNewSeedAndStop
         jsr     runThroughMap2
-
         jsr     pullStopSeedAndOffset
 
         lda     seed+0
@@ -1114,7 +1114,7 @@ loopInit:
 @loop:
         jsr     seedRestore
         jsr     processSeed
-        bcc     part2init
+        bcc     endOfLoop
         INCREMENT_OFFSET
         jmp     @loop
 
