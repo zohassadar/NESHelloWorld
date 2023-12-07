@@ -17,6 +17,7 @@ pulledDigits: .res 13
 found:  .res    1
 
 offset: .res    2
+numberCount: .res 1
 
 seedStash: .res 2
 mapsStart: .res 2
@@ -26,12 +27,13 @@ seed_range: .res 5
 
 swap_count: .res 1
 
-maps_lo_ptr_lo_backup: .res 1 ; backup of lo byte for sorting purposes
-maps_hi_ptr_lo_backup: .res 1 ; backup of lo byte for sorting purposes
+maps_index: .res 1 ; backup of lo byte for sorting purposes
+maps_group_start: .res 1 ; because we aren't using enough
 
 maps_lo_ptr: .res 2 ; lo byte is maps lo index.  this hi byte is set once
 maps_hi_ptr: .res 2 ; lo byte is maps hi index.  this hi byte is set once
 
+compareBuffer: .res 5
 trans:  .res    5
 start:  .res    5
 range:  .res    5
@@ -76,7 +78,6 @@ generalCounter: .res 1
 stack:
         .res    $100
 
-unused:
 maps_lo:.res    $100 ; 
 maps_hi:.res    $100 ; FF = next, FE = end;
 ; to make sure this will work:
@@ -729,18 +730,52 @@ clearNReturn2:
 runThroughMap2:
         rts
 
-findNewlineColonOrEOF:
+findAnchoredDigitColonOrEOF:
         ldy #$00
 @loop:
         lda (offset),y
-        beq @ret
-        cmp #newline
-        beq @ret
+        bne @testColon
+        rts
+@testColon:
         cmp #':'
-        beq @ret
+        bne @testNewline
+        rts
+@testNewline:
+        cmp #newline
+        bne @incAndJump
+        INCREMENT_OFFSET
+        lda (offset),y
+        jsr isItANumber
+        bcs @incAndJump
+        adc #$01 ; carry isn't important as long as a!=0
+        rts
+@incAndJump:
         INCREMENT_OFFSET
         jmp @loop
-@ret:   rts        
+
+
+findSecondNumber:
+        lda     #$02
+        bne     findNumber
+findThirdNumber:
+        lda     #$03
+findNumber:
+        sta     numberCount
+@loop:
+        ldy     #$00
+        lda     (offset),y
+        jsr     isItANumber
+        bcs     @NaN
+        dec     numberCount
+        beq     @ret
+@testNumberLoop:
+        INCREMENT_OFFSET
+        jsr     isItANumber
+        bcc     @testNumberLoop
+@NaN:
+        INCREMENT_OFFSET
+        jmp     @loop
+@ret:   rts
 
 processMapIndices:
 ; no jsr to anything that uses x
@@ -748,32 +783,153 @@ processMapIndices:
         ldx     #$00
 ; starting value
 @loop:
+        INCREMENT_OFFSET
+        jsr     findAnchoredDigitColonOrEOF
+        cmp     #$00
+        beq     @addTailAndSort
+        cmp     #':'
+        beq     @newGroup
         lda     offset
         sta     maps_lo,x
         lda     offset+1
         sta     maps_hi,x
         inx
-        INCREMENT_OFFSET
-        jsr     findNewlineColonOrEOF
-        cmp     #$00
-        beq     @addTailAndReturn
-        cmp     #':'
-        bne     @loop
+        jmp     @loop
+@newGroup:
         lda     #$FF
         sta     maps_hi,x
         inx
-        bne     @loop
-@addTailAndReturn:
+        jmp     @loop
+@addTailAndSort:
         lda     #$FE
         sta     maps_hi,x
+
+        lda     #$00
+        sta     maps_group_start
+        jsr     restoreMapsIndex
+
+@startSort:
+        ldx     maps_index
+        lda     #$00
+        sta     swap_count
+@sortLoop:
+        ; check to see if we're done or not
+        lda     maps_hi+1,x
+        and     #$FE
+        cmp     #$FE
+        beq     @checkForNextGroup
+        stx     maps_hi_ptr
+        stx     maps_lo_ptr
+        jsr     setOffsetFromMaps
+        jsr     findSecondNumber
+        jsr     pullOutNumber
+        copy    5, pulledNumber, compareBuffer
+
+        inc     maps_hi_ptr ; move to next in line
+        inc     maps_lo_ptr
+        jsr     setOffsetFromMaps
+        dec     maps_hi_ptr
+        dec     maps_lo_ptr
+        jsr     findSecondNumber
+        jsr     pullOutNumber
+        ldx     maps_hi_ptr ; restore x before compare
+        sub     5, compareBuffer, pulledNumber
+        bcs     @nextNumber ; carry set means 1st number less than second
+        inc     swap_count
+; this can be optimized quite a bit but right now i don't care
+        ldy     #$00
+        lda     (maps_lo_ptr),y
+        pha
+        lda     (maps_hi_ptr),y
+        pha
+        inc     maps_lo_ptr
+        inc     maps_hi_ptr
+        lda     (maps_lo_ptr),y
+        pha
+        lda     (maps_hi_ptr),y
+        pha
+        dec     maps_lo_ptr
+        dec     maps_hi_ptr
+        pla
+        sta     (maps_hi_ptr),y
+        pla
+        sta     (maps_lo_ptr),y
+        inc     maps_lo_ptr
+        inc     maps_hi_ptr
+        pla
+        sta     (maps_hi_ptr),y
+        pla
+        sta     (maps_lo_ptr),y
+        jmp     @nextNumber
+
+@checkForNextGroup:
+        lda     swap_count
+        beq     @nextGroup
+        jsr     restoreMapsIndex
+        jmp     @startSort
+@nextGroup:
+        lda     maps_hi+1,x ; do we keep going?
+        cmp     #$FE
+        beq     @endSorting
+        inx
+        inx
+        stx     maps_group_start ; reset group start
+        stx     maps_index ; reset group pointer
+        jmp     @startSort
+@nextNumber:
+        inx
+        stx     maps_index ; increase index
+        jmp     @sortLoop
+@endSorting:
+        lda      #$00
+        sta      maps_group_start
+        jsr      restoreMapsIndex
         rts
 
+
+restoreMapsIndex:
+        lda    maps_group_start
+        sta    maps_index
+        sta    maps_lo_ptr
+        sta    maps_hi_ptr
+        rts
+
+nextMaporEOF:
+        ldy     #$00
+@loop:
+        inc     maps_lo_ptr
+        inc     maps_hi_ptr
+        lda     (maps_hi_ptr),y
+        cmp     #$FF
+        beq     @setCarryAndReturn
+        cmp     #$FE
+        beq     @clearCarryAndReturn
+        jmp     @loop
+@clearCarryAndReturn:
+        clc
+        rts
+@setCarryAndReturn:
+        sec
+        rts
+
+
+setOffsetFromMaps:
+        ldy #$00
+        lda (maps_lo_ptr),y
+        sta offset
+        lda (maps_hi_ptr),y
+        sta offset+1
+        rts
+
+clearNReturn3:
+        clc
+        rts
 
 processSeedRange:
         ; pull two instead of one
         jsr     seedRestore
         jsr     findDigitOrNewline
-        bcc     clearNReturn2
+        bcc     clearNReturn3
 ; start
         jsr     pullOutNumber
         copy    5, pulledNumber, seed
