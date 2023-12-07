@@ -27,8 +27,13 @@ trans:  .res    5
 start:  .res    5
 range:  .res    5
 
-scratchX:  .res 5
-scratchY:  .res 5
+stop: .res 5
+end_: .res 5
+bump:  .res 5 
+new_span : .res 5
+xlated_start: .res 5
+xlated_end: .res 5
+xlate_stop:  .res 5
 total:  .res    5
 total2: .res    5
 
@@ -654,11 +659,279 @@ findDigitOrEOF:
         INCREMENT_OFFSET
         jmp     @loop
 
+pushOffsetNewSeedAndStop:
+        lda     offset
+        pha
+        lda     offset+1
+        pha
 
-runThroughMap:
+        lda     end_
+        pha
+        lda     end_+1
+        pha
+        lda     end_+2
+        pha
+        lda     end_+3
+        pha
+        lda     end_+4
+        pha
+
+        lda     stop
+        pha
+        lda     stop+1
+        pha
+        lda     stop+2
+        pha
+        lda     stop+3
+        pha
+        lda     stop+4
+        pha
+
+        rts
+
+pullStopSeedAndOffset:
+        pla
+        sta     stop+4
+        pla
+        sta     stop+3
+        pla
+        sta     stop+2
+        pla
+        sta     stop+1
+        pla
+        sta     stop
+
+        pla
+        sta     seed+4
+        pla
+        sta     seed+3
+        pla
+        sta     seed+2
+        pla
+        sta     seed+1
+        pla
+        sta     seed
+
+        pla
+        sta     offset+1
+        pla
+        sta     offset
+        rts
+
+runThroughMap2:
         jsr     findDigitOrEOF
         bne     @notEnd
+        ; Add endgame here
+
+        ; skip if seed is zero
+        lda    seed+0
+        bne    @seedIsntZero
+        lda    seed+1
+        bne    @seedIsntZero
+        lda    seed+2
+        bne    @seedIsntZero
+        lda    seed+3
+        bne    @seedIsntZero
+        lda    seed+4
+        bne    @seedIsntZero
+        rts
+@seedIsntZero:
+        lda     total2
+        bne     @notZero
+        lda     total2+1
+        bne     @notZero
+        lda     total2+2
+        bne     @notZero
+        lda     total2+3
+        bne     @notZero
+        lda     total2+4
+        bne     @notZero
+        beq     @storeSeedAnyway
+@notZero:
+        sec
+        lda     seed
+        sbc     total2
+        lda     seed+1
+        sbc     total2+1
+        lda     seed+2
+        sbc     total2+2
+        lda     seed+3
+        sbc     total2+3
+        lda     seed+4
+        sbc     total2+4
+        bcs     @ret  ; return if seed is bigger
+@storeSeedAnyway:
+; store seed as total otherwise
+        lda     seed
+        sta     total2
+        lda     seed+1
+        sta     total2+1
+        lda     seed+2
+        sta     total2+2
+        lda     seed+3
+        sta     total2+3
+        lda     seed+4
+        sta     total2+4
+@ret:   rts
+
+@notEnd:
+        jsr     pullMapNumbers
+        jsr     subtractStartFromSeedAndSaveToBump
+        bcs     @startGreaterThanOrEqualToStart
+        jmp     @seedLessThanStart
+@startGreaterThanOrEqualToStart:
+        jsr     addStartToRangeAndSaveToXlateStop
+        jsr     subtractXlateStopFromSeed
+        bcc     @startPlusRangeGreaterThanSeed
+        jmp     @seedGreaterThanOrEqualToStartPlusRange
+
+
+@startPlusRangeGreaterThanSeed:
+; end = stop if stop < xlate_stop else xlate_stop
+        clc
+        lda     stop+0
+        sbc     xlate_stop+0
+        lda     stop+1
+        sbc     xlate_stop+1
+        lda     stop+2
+        sbc     xlate_stop+2
+        lda     stop+3
+        sbc     xlate_stop+3
+        lda     stop+4
+        sbc     xlate_stop+4
+        bcc     @setEndToStop
+
+;       set end to xlate_stop
+        lda     xlate_stop+0
+        sta     end_+0
+        lda     xlate_stop+1
+        sta     end_+1
+        lda     xlate_stop+2
+        sta     end_+2
+        lda     xlate_stop+3
+        sta     end_+3
+        lda     xlate_stop+4
+        sta     end_+4
+        jmp     @endSet
+
+@setEndToStop:
+        lda     stop+0
+        sta     end_+0
+        lda     stop+1
+        sta     end_+1
+        lda     stop+2
+        sta     end_+2
+        lda     stop+3
+        sta     end_+3
+        lda     stop+4
+        sta     end_+4
+@endSet:
+
+; set bump
+        sec
+        lda     seed+0
+        sbc     start+0
+        sta     bump+0
+        lda     seed+1
+        sbc     start+1
+        sta     bump+1
+        lda     seed+2
+        sbc     start+2
+        sta     bump+2
+        lda     seed+3
+        sbc     start+3
+        sta     bump+3
+        lda     seed+4
+        sbc     start+4
+        sta     bump+4
+
+; set new_span
+        sec
+        lda     end_+0
+        sbc     seed+0
+        sta     new_span+0
+        lda     end_+1
+        sbc     seed+1
+        sta     new_span+1
+        lda     end_+2
+        sbc     seed+2
+        sta     new_span+2
+        lda     end_+3
+        sbc     seed+3
+        sta     new_span+3
+        lda     end_+4
+        sbc     seed+4
+        sta     new_span+4
+
+        jsr     pushOffsetNewSeedAndStop
+        
+        clc
+        lda     trans+0
+        adc     bump+0
+        sta     seed+0
+        lda     trans+1
+        adc     bump+1
+        sta     seed+1
+        lda     trans+2
+        adc     bump+2
+        sta     seed+2
+        lda     trans+3
+        adc     bump+3
+        sta     seed+3
+        lda     trans+4
+        adc     bump+4
+        sta     seed+4
+
+        clc
+        lda     seed+0
+        adc     new_span+0
+        sta     stop+0
+        lda     seed+1
+        adc     new_span+1
+        sta     stop+1
+        lda     seed+2
+        adc     new_span+2
+        sta     stop+2
+        lda     seed+3
+        adc     new_span+3
+        sta     stop+3
+        lda     seed+4
+        adc     new_span+4
+        sta     stop+4
+
+        jsr     findColonOrEOF
+        jsr     runThroughMap2
+
+        jsr     pullStopSeedAndOffset
+
+        lda     seed+0
+        cmp     stop+0
+        bne     @seedNotEqualToStop
+        lda     seed+1
+        cmp     stop+1
+        bne     @seedNotEqualToStop
+        lda     seed+2
+        cmp     stop+2
+        bne     @seedNotEqualToStop
+        lda     seed+3
+        cmp     stop+3
+        bne     @seedNotEqualToStop
+        lda     seed+4
+        cmp     stop+4
+        bne     @seedNotEqualToStop
+        rts
+@seedNotEqualToStop:
+@seedGreaterThanOrEqualToStartPlusRange:
+@seedLessThanStart:
+        jmp     runThroughMap2
+
+
+        
+runThroughMap:
+        jsr     findDigitOrEOF
+        bcs     @notEnd
 ; End!  check if total is zero first
+
         lda     total
         bne     @notZero
         lda     total+1
@@ -699,114 +972,30 @@ runThroughMap:
         sta     total+4
 @ret:   rts
 @notEnd:
-        jsr     pullOutNumber
-
-        lda     pulledNumber
-        sta     trans
-        lda     pulledNumber+1
-        sta     trans+1
-        lda     pulledNumber+2
-        sta     trans+2
-        lda     pulledNumber+3
-        sta     trans+3
-        lda     pulledNumber+4
-        sta     trans+4
-
-        jsr     findDigitOrEOF
-        jsr     pullOutNumber
-
-        lda     pulledNumber
-        sta     start
-        lda     pulledNumber+1
-        sta     start+1
-        lda     pulledNumber+2
-        sta     start+2
-        lda     pulledNumber+3
-        sta     start+3
-        lda     pulledNumber+4
-        sta     start+4
-        
-        jsr     findDigitOrEOF
-        jsr     pullOutNumber
-
-        lda     pulledNumber
-        sta     range
-        lda     pulledNumber+1
-        sta     range+1
-        lda     pulledNumber+2
-        sta     range+2
-        lda     pulledNumber+3
-        sta     range+3
-        lda     pulledNumber+4
-        sta     range+4
-
+        jsr     pullMapNumbers
         ;     if (seed >= start && seed < start + range){
-        sec
-        lda     seed
-        sbc     start
-        sta     scratchX
-        lda     seed+1
-        sbc     start+1
-        sta     scratchX+1
-        lda     seed+2
-        sbc     start+2
-        sta     scratchX+2
-        lda     seed+3
-        sbc     start+3
-        sta     scratchX+3
-        lda     seed+4
-        sbc     start+4
-        sta     scratchX+4
+        jsr     subtractStartFromSeedAndSaveToBump
         bcc     @seedLessThanStart
-
-        clc
-
-        lda     start
-        adc     range
-        sta     scratchY
-        lda     start+1
-        adc     range+1
-        sta     scratchY+1
-        lda     start+2
-        adc     range+2
-        sta     scratchY+2
-        lda     start+3
-        adc     range+3
-        sta     scratchY+3
-        lda     start+4
-        adc     range+4
-        sta     scratchY+4
-
-        sec
-        lda     seed
-        sbc     scratchY
-        lda     seed+1
-        sbc     scratchY+1
-        lda     seed+2
-        sbc     scratchY+2
-        lda     seed+3
-        sbc     scratchY+3
-        lda     seed+4
-        sbc     scratchY+4
+        jsr     addStartToRangeAndSaveToXlateStop
+        jsr     subtractXlateStopFromSeed
         bcs     @seedGreaterThanOrEqualToStartPlusRange
-
         ;         return trans + (seed-start)
         ;     }
         clc
         lda     trans
-        adc     scratchX
+        adc     bump
         sta     seed
         lda     trans+1
-        adc     scratchX+1
+        adc     bump+1
         sta     seed+1
         lda     trans+2
-        adc     scratchX+2
+        adc     bump+2
         sta     seed+2
         lda     trans+3
-        adc     scratchX+3
+        adc     bump+3
         sta     seed+3
         lda     trans+4
-        adc     scratchX+4
+        adc     bump+4
         sta     seed+4
         jsr     findColonOrEOF ; Skip the rest of this group
         jmp     runThroughMap
@@ -859,21 +1048,28 @@ processSeedRange:
 
         jsr     findDigitOrNewline
         jsr     pullOutNumber
-        lda     pulledNumber
-        sta     seed_range
+
+        clc
+        lda     pulledNumber+0
+        adc     seed_range+0
+        sta     stop+0
         lda     pulledNumber+1
-        sta     seed_range+1
+        adc     seed_range+1
+        sta     stop+1
         lda     pulledNumber+2
-        sta     seed_range+2
+        adc     seed_range+2
+        sta     stop+2
         lda     pulledNumber+3
-        sta     seed_range+3
+        adc     seed_range+3
+        sta     stop+3
         lda     pulledNumber+4
-        sta     seed_range+4
+        adc     seed_range+4
+        sta     stop+4
 
         jsr     stashSeed
         jsr     mapRestore
 
-        jsr     runThroughMap
+        jsr     runThroughMap2
 
         jmp     setCarryAndReturn
 
@@ -975,6 +1171,102 @@ loop4Ever:
         jmp     loop4Ever
 
 
+
+pullMapNumbers:
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     trans
+        lda     pulledNumber+1
+        sta     trans+1
+        lda     pulledNumber+2
+        sta     trans+2
+        lda     pulledNumber+3
+        sta     trans+3
+        lda     pulledNumber+4
+        sta     trans+4
+
+        jsr     findDigitOrEOF
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     start
+        lda     pulledNumber+1
+        sta     start+1
+        lda     pulledNumber+2
+        sta     start+2
+        lda     pulledNumber+3
+        sta     start+3
+        lda     pulledNumber+4
+        sta     start+4
+        
+        jsr     findDigitOrEOF
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     range
+        lda     pulledNumber+1
+        sta     range+1
+        lda     pulledNumber+2
+        sta     range+2
+        lda     pulledNumber+3
+        sta     range+3
+        lda     pulledNumber+4
+        sta     range+4
+        rts
+
+subtractStartFromSeedAndSaveToBump:
+        sec
+        lda     seed
+        sbc     start
+        sta     bump
+        lda     seed+1
+        sbc     start+1
+        sta     bump+1
+        lda     seed+2
+        sbc     start+2
+        sta     bump+2
+        lda     seed+3
+        sbc     start+3
+        sta     bump+3
+        lda     seed+4
+        sbc     start+4
+        sta     bump+4
+        rts
+
+addStartToRangeAndSaveToXlateStop:
+        clc
+        lda     start
+        adc     range
+        sta     xlate_stop
+        lda     start+1
+        adc     range+1
+        sta     xlate_stop+1
+        lda     start+2
+        adc     range+2
+        sta     xlate_stop+2
+        lda     start+3
+        adc     range+3
+        sta     xlate_stop+3
+        lda     start+4
+        adc     range+4
+        sta     xlate_stop+4
+        rts
+
+
+subtractXlateStopFromSeed:
+        sec
+        lda     seed
+        sbc     xlate_stop
+        lda     seed+1
+        sbc     xlate_stop+1
+        lda     seed+2
+        sbc     xlate_stop+2
+        lda     seed+3
+        sbc     xlate_stop+3
+        lda     seed+4
+        sbc     xlate_stop+4
+        rts
 
 ; NMI Functions
 
