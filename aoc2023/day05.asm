@@ -24,6 +24,11 @@ mapsStart: .res 2
 seed:   .res    5
 seed_range: .res 5
 
+swap_count: .res 1
+
+maps_lo_ptr: .res 2 ; lo byte is maps lo index.  this hi byte is set once
+maps_hi_ptr: .res 2 ; lo byte is maps hi index.  this hi byte is set once
+
 trans:  .res    5
 start:  .res    5
 range:  .res    5
@@ -35,6 +40,7 @@ new_span : .res 5
 xlated_start: .res 5
 xlated_end: .res 5
 xlate_stop:  .res 5
+
 total:  .res    5
 total2: .res    5
 
@@ -68,8 +74,11 @@ stack:
         .res    $100
 
 unused:
-        .res    $100
-        .res    $100
+maps_lo:.res    $100 ; 
+maps_hi:.res    $100 ; FF = next, FE = end;
+; to make sure this will work:
+.assert endOfData & $ff00 < $fe00, error, "End of data is in bad territory"
+
         .res    $100
         .res    $100
         .res    $100
@@ -660,183 +669,6 @@ findDigitOrEOF:
         INCREMENT_OFFSET
         jmp     @loop
 
-pushOffsetNewSeedAndStop:
-        lda     offset
-        pha
-        lda     offset+1
-        pha
-
-        lda     end_
-        pha
-        lda     end_+1
-        pha
-        lda     end_+2
-        pha
-        lda     end_+3
-        pha
-        lda     end_+4
-        pha
-
-        lda     stop
-        pha
-        lda     stop+1
-        pha
-        lda     stop+2
-        pha
-        lda     stop+3
-        pha
-        lda     stop+4
-        pha
-
-        rts
-
-pullStopSeedAndOffset:
-        pla
-        sta     stop+4
-        pla
-        sta     stop+3
-        pla
-        sta     stop+2
-        pla
-        sta     stop+1
-        pla
-        sta     stop
-
-        pla
-        sta     seed+4
-        pla
-        sta     seed+3
-        pla
-        sta     seed+2
-        pla
-        sta     seed+1
-        pla
-        sta     seed
-
-        pla
-        sta     offset+1
-        pla
-        sta     offset
-        rts
-
-runThroughMap2:
-        jsr     findColonOrEOF
-        bcs     @notEnd
-        jsr     findDigitOrEOF
-        bcs     @notEnd
-        ; Add endgame here
-
-        ; skip if seed is zero
-        lda    seed+0
-        bne    @seedIsntZero
-        lda    seed+1
-        bne    @seedIsntZero
-        lda    seed+2
-        bne    @seedIsntZero
-        lda    seed+3
-        bne    @seedIsntZero
-        lda    seed+4
-        bne    @seedIsntZero
-        rts
-@seedIsntZero:
-        lda     total2
-        bne     @notZero
-        lda     total2+1
-        bne     @notZero
-        lda     total2+2
-        bne     @notZero
-        lda     total2+3
-        bne     @notZero
-        lda     total2+4
-        bne     @notZero
-        beq     @storeSeedAnyway
-@notZero:
-        sec
-        lda     seed
-        sbc     total2
-        lda     seed+1
-        sbc     total2+1
-        lda     seed+2
-        sbc     total2+2
-        lda     seed+3
-        sbc     total2+3
-        lda     seed+4
-        sbc     total2+4
-        bcs     @ret  ; return if seed is bigger
-@storeSeedAnyway:
-; store seed as total otherwise
-        lda     seed
-        sta     total2
-        lda     seed+1
-        sta     total2+1
-        lda     seed+2
-        sta     total2+2
-        lda     seed+3
-        sta     total2+3
-        lda     seed+4
-        sta     total2+4
-@ret:   rts
-
-@notEnd:
-        jsr     pullMapNumbers
-        jsr     subtractStartFromSeedAndSaveToBump
-        bcs     @startGreaterThanOrEqualToStart
-        jmp     @seedLessThanStart
-@startGreaterThanOrEqualToStart:
-        jsr     addStartToRangeAndSaveToXlateStop
-        jsr     subtractXlateStopFromSeed
-        bcc     @startPlusRangeGreaterThanSeed
-        jmp     @seedGreaterThanOrEqualToStartPlusRange
-
-
-@startPlusRangeGreaterThanSeed:
-; end = stop if stop < xlate_stop else xlate_stop
-        sub     5, xlate_stop, stop
-        bcc     @setEndToStop
-
-;       set end to xlate_stop
-        copy    5, xlate_stop, end_
-
-@setEndToStop:
-        copy    5, stop, end_
-
-@endSet:
-
-; set bump
-        sub     5, start, seed, bump
-
-; set new_span
-        sub     5, seed, end_, new_span
-
-        jsr     pushOffsetNewSeedAndStop
-        
-        add     5, bump, trans, seed
-
-        add     5, new_span, seed, stop
-        jsr     pushOffsetNewSeedAndStop
-        jsr     runThroughMap2
-        jsr     pullStopSeedAndOffset
-
-        lda     seed+0
-        cmp     stop+0
-        bne     @seedNotEqualToStop
-        lda     seed+1
-        cmp     stop+1
-        bne     @seedNotEqualToStop
-        lda     seed+2
-        cmp     stop+2
-        bne     @seedNotEqualToStop
-        lda     seed+3
-        cmp     stop+3
-        bne     @seedNotEqualToStop
-        lda     seed+4
-        cmp     stop+4
-        bne     @seedNotEqualToStop
-        rts
-@seedNotEqualToStop:
-@seedGreaterThanOrEqualToStartPlusRange:
-@seedLessThanStart:
-        jmp     runThroughMap2
 
 
         
@@ -859,10 +691,10 @@ runThroughMap:
 @notEnd:
         jsr     pullMapNumbers
         ;     if (seed >= start && seed < start + range){
-        jsr     subtractStartFromSeedAndSaveToBump
+        sub     5, start, seed, bump
         bcc     @seedLessThanStart
-        jsr     addStartToRangeAndSaveToXlateStop
-        jsr     subtractXlateStopFromSeed
+        add     5, range, start, xlate_stop
+        sub     5, xlate_stop, seed
         bcs     @seedGreaterThanOrEqualToStartPlusRange
         ;         return trans + (seed-start)
         ;     }
@@ -891,6 +723,9 @@ clearNReturn2:
         clc
         rts
 
+runThroughMap2:
+        rts
+
 processSeedRange:
         ; pull two instead of one
         jsr     findDigitOrNewline
@@ -900,7 +735,7 @@ processSeedRange:
 
         jsr     findDigitOrNewline
         jsr     pullOutNumber
-        add    5, pulledNumber, seed_range, stop
+        add     5, pulledNumber, seed_range, stop
 
         jsr     stashSeed
         jsr     mapRestore
@@ -989,18 +824,6 @@ pullMapNumbers:
         copy    5, pulledNumber, range
         rts
 
-subtractStartFromSeedAndSaveToBump:
-        sub     5, start, seed, bump
-        rts
-
-addStartToRangeAndSaveToXlateStop:
-        add     5, start, range, xlate_stop
-        rts
-
-
-subtractXlateStopFromSeed:
-        sub     5, xlate_stop, seed
-        rts
 
 ; NMI Functions
 
