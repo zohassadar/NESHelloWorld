@@ -26,6 +26,8 @@ trans:  .res    5
 start:  .res    5
 range:  .res    5
 
+scratchX:  .res 5
+scratchY:  .res 5
 total:  .res    5
 total2: .res    5
 
@@ -654,6 +656,48 @@ findDigitOrEOF:
 
 runThroughMap:
         jsr     findDigitOrEOF
+        bne     @notEnd
+; End!  check if total is zero first
+        lda     total
+        bne     @notZero
+        lda     total+1
+        bne     @notZero
+        lda     total+2
+        bne     @notZero
+        lda     total+3
+        bne     @notZero
+        lda     total+4
+        bne     @notZero
+        beq     @storeSeedAnyway
+
+@notZero:
+        sec
+        lda     seed
+        sbc     total
+        lda     seed+1
+        sbc     total+1
+        lda     seed+2
+        sbc     total+2
+        lda     seed+3
+        sbc     total+3
+        lda     seed+4
+        sbc     total+4
+        bcs     @ret  ; return if seed is bigger
+
+@storeSeedAnyway:
+; store seed as total otherwise
+        lda     seed
+        sta     total
+        lda     seed+1
+        sta     total+1
+        lda     seed+2
+        sta     total+2
+        lda     seed+3
+        sta     total+3
+        lda     seed+4
+        sta     total+4
+@ret:   rts
+@notEnd:
         jsr     pullOutNumber
 
         lda     pulledNumber
@@ -694,11 +738,85 @@ runThroughMap:
         sta     range+3
         lda     pulledNumber+4
         sta     range+4
-        rts
+
+        ;     if (seed >= start && seed < start + range){
+        sec
+        lda     seed
+        sbc     start
+        sta     scratchX
+        lda     seed+1
+        sbc     start+1
+        sta     scratchX+1
+        lda     seed+2
+        sbc     start+2
+        sta     scratchX+2
+        lda     seed+3
+        sbc     start+3
+        sta     scratchX+3
+        lda     seed+4
+        sbc     start+4
+        sta     scratchX+4
+        bcc     @seedLessThanStart
+
+        clc
+
+        lda     start
+        adc     range
+        sta     scratchY
+        lda     start+1
+        adc     range+1
+        sta     scratchY+1
+        lda     start+2
+        adc     range+2
+        sta     scratchY+2
+        lda     start+3
+        adc     range+3
+        sta     scratchY+3
+        lda     start+4
+        adc     range+4
+        sta     scratchY+4
+
+        sec
+        lda     seed
+        sbc     scratchY
+        lda     seed+1
+        sbc     scratchY+1
+        lda     seed+2
+        sbc     scratchY+2
+        lda     seed+3
+        sbc     scratchY+3
+        lda     seed+4
+        sbc     scratchY+4
+        bcs     @seedGreaterThanOrEqualToStartPlusRange
+
+        ;         return trans + (seed-start)
+        ;     }
+        clc
+        lda     trans
+        adc     scratchX
+        sta     seed
+        lda     trans+1
+        adc     scratchX+1
+        sta     seed+1
+        lda     trans+2
+        adc     scratchX+2
+        sta     seed+2
+        lda     trans+3
+        adc     scratchX+3
+        sta     seed+3
+        lda     trans+4
+        adc     scratchX+4
+        sta     seed+4
+        jsr     findColonOrEOF ; Skip the rest of this group
+        jmp     runThroughMap
+
+@seedLessThanStart:
+@seedGreaterThanOrEqualToStartPlusRange:
+        jmp     runThroughMap
 
 processSeed:
         jsr     findDigitOrNewline
-        bcc     clearNReturn
+        bcc     @clearNReturn
         jsr     pullOutNumber
         lda     pulledNumber
         sta     seed
@@ -718,7 +836,9 @@ processSeed:
 
         jmp     setCarryAndReturn
 
-
+@clearNReturn:
+        clc
+        rts
 
 mapRestore:
         lda     mapsStart
