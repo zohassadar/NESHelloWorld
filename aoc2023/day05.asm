@@ -26,6 +26,9 @@ seed_range: .res 5
 
 swap_count: .res 1
 
+maps_lo_ptr_lo_backup: .res 1 ; backup of lo byte for sorting purposes
+maps_hi_ptr_lo_backup: .res 1 ; backup of lo byte for sorting purposes
+
 maps_lo_ptr: .res 2 ; lo byte is maps lo index.  this hi byte is set once
 maps_hi_ptr: .res 2 ; lo byte is maps hi index.  this hi byte is set once
 
@@ -726,23 +729,37 @@ clearNReturn2:
 runThroughMap2:
         rts
 
+
+processMapIndices:
+        rts
+
 processSeedRange:
         ; pull two instead of one
+        jsr     seedRestore
         jsr     findDigitOrNewline
         bcc     clearNReturn2
+; start
         jsr     pullOutNumber
         copy    5, pulledNumber, seed
 
         jsr     findDigitOrNewline
+
+; end, skip saving and add to start
         jsr     pullOutNumber
         add     5, pulledNumber, seed_range, stop
 
         jsr     stashSeed
-        jsr     mapRestore
-
+        jsr     part2MapRestore
         jsr     runThroughMap2
 
         jmp     setCarryAndReturn
+
+part2MapRestore:
+        lda     #$00
+        sta     maps_hi_ptr
+        sta     maps_lo_ptr
+        rts
+
 
 mapRestore:
         copy    2, mapsStart, offset
@@ -760,7 +777,6 @@ loopInit:
         lda     #<(data+7)
         sta     offset
         sta     seedStash
-
         lda     #>(data+7)
         sta     offset+1
         sta     seedStash+1
@@ -779,15 +795,29 @@ loopInit:
 somethingWrong:
         inc     errorFlag
 
-part2init:
-        lda     #<(data+7)
-        sta     seedStash
 
+part2init:
+; copy and paste from part 1
+        lda     #<(data+7)
+        sta     offset
+        sta     seedStash
         lda     #>(data+7)
+        sta     offset+1
         sta     seedStash+1
-        jsr     mapRestore
+
+; set map pointers
+        lda     #>maps_lo
+        sta     maps_lo_ptr+1
+        lda     #>maps_hi
+        sta     maps_hi_ptr+1
+        lda     #$00
+        sta     maps_lo_ptr
+        sta     maps_hi_ptr
+
+; write indices and sort
+        jsr     processMapIndices
+
 @loop:
-        jsr     seedRestore
         jsr     processSeedRange
         bcc     endOfLoop
         INCREMENT_OFFSET
