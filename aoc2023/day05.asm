@@ -845,16 +845,7 @@ runThroughMap:
         bcs     @notEnd
 ; End!  check if total is zero first
 
-        lda     total
-        bne     @notZero
-        lda     total+1
-        bne     @notZero
-        lda     total+2
-        bne     @notZero
-        lda     total+3
-        bne     @notZero
-        lda     total+4
-        bne     @notZero
+        isZero  5, total
         beq     @storeSeedAnyway
 
 @notZero:
@@ -905,36 +896,11 @@ processSeedRange:
         jsr     findDigitOrNewline
         bcc     clearNReturn2
         jsr     pullOutNumber
-        lda     pulledNumber
-        sta     seed
-        lda     pulledNumber+1
-        sta     seed+1
-        lda     pulledNumber+2
-        sta     seed+2
-        lda     pulledNumber+3
-        sta     seed+3
-        lda     pulledNumber+4
-        sta     seed+4
+        copy    5, pulledNumber, seed
 
         jsr     findDigitOrNewline
         jsr     pullOutNumber
-
-        clc
-        lda     pulledNumber+0
-        adc     seed_range+0
-        sta     stop+0
-        lda     pulledNumber+1
-        adc     seed_range+1
-        sta     stop+1
-        lda     pulledNumber+2
-        adc     seed_range+2
-        sta     stop+2
-        lda     pulledNumber+3
-        adc     seed_range+3
-        sta     stop+3
-        lda     pulledNumber+4
-        adc     seed_range+4
-        sta     stop+4
+        add    5, pulledNumber, seed_range, stop
 
         jsr     stashSeed
         jsr     mapRestore
@@ -944,24 +910,15 @@ processSeedRange:
         jmp     setCarryAndReturn
 
 mapRestore:
-        lda     mapsStart
-        sta     offset
-        lda     mapsStart+1
-        sta     offset+1
+        copy    2, mapsStart, offset
         rts
 
 stashSeed:
-        lda     offset          ; store next position
-        sta     seedStash
-        lda     offset+1
-        sta     seedStash+1
+        copy    2, offset, seedStash ; store next position
         rts
 
 seedRestore:
-        lda     seedStash
-        sta     offset
-        lda     seedStash+1
-        sta     offset+1
+        copy    2, seedStash, offset
         rts
 
 loopInit:
@@ -976,11 +933,7 @@ loopInit:
         jsr     findColonOrEOF
 
         INCREMENT_OFFSET
-
-        lda     offset
-        sta     mapsStart
-        lda     offset+1
-        sta     mapsStart+1
+        copy    2, offset, mapsStart
 @loop:
         jsr     seedRestore
         jsr     processSeed
