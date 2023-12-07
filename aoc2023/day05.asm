@@ -729,9 +729,45 @@ clearNReturn2:
 runThroughMap2:
         rts
 
+findNewlineColonOrEOF:
+        ldy #$00
+@loop:
+        lda (offset),y
+        beq @ret
+        cmp #newline
+        beq @ret
+        cmp #':'
+        beq @ret
+        INCREMENT_OFFSET
+        jmp @loop
+@ret:   rts        
 
 processMapIndices:
+; no jsr to anything that uses x
+        jsr     findColonOrEOF
+        ldx     #$00
+; starting value
+@loop:
+        lda     offset
+        sta     maps_lo,x
+        lda     offset+1
+        sta     maps_hi,x
+        inx
+        INCREMENT_OFFSET
+        jsr     findNewlineColonOrEOF
+        cmp     #$00
+        beq     @addTailAndReturn
+        cmp     #':'
+        bne     @loop
+        lda     #$FF
+        sta     maps_hi,x
+        inx
+        bne     @loop
+@addTailAndReturn:
+        lda     #$FE
+        sta     maps_hi,x
         rts
+
 
 processSeedRange:
         ; pull two instead of one
@@ -788,7 +824,7 @@ loopInit:
 @loop:
         jsr     seedRestore
         jsr     processSeed
-        bcc     endOfLoop
+        bcc     part2init
         INCREMENT_OFFSET
         jmp     @loop
 
