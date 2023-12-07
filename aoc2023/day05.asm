@@ -16,8 +16,15 @@ pulledDigits: .res 13
 found:  .res    1
 
 offset: .res    2
+
 seedStash: .res 2
 mapsStart: .res 2
+
+seed:   .res    5
+
+trans:  .res    5
+start:  .res    5
+range:  .res    5
 
 total:  .res    5
 total2: .res    5
@@ -45,7 +52,7 @@ digit4Loc: .res 2
 generalCounter: .res 1
 
 
-.res    $A0
+.res    $50
 
 .bss
 stack:
@@ -87,6 +94,13 @@ asciiOffset     = $30
 
 EOF             = $00
 newline         = $0a
+
+.macro  INCREMENT_OFFSET
+        inc     offset
+        bne     :+
+        inc     offset+1
+:
+.endmacro
 
 compareBytes:
 bytesFor1t:
@@ -603,24 +617,128 @@ findColonOrEOF:
         ldy     #$00
 @loop:
         lda     (offset),y
-        beq     @clearNReturn
+        beq     clearNReturn
         cmp     #$3a
-        beq     @setNReturn
+        beq     setNReturn
         INCREMENT_OFFSET
         jmp     @loop
-@setNReturn:
+
+setNReturn:
         sec
         rts
-@clearNReturn:
+clearNReturn:
         clc
         rts
 
+findDigitOrNewline:
+        ldy     #$00
+@loop:
+        lda     (offset),y
+        cmp     #newline
+        beq     clearNReturn
+        jsr     isItANumber
+        bcc     setNReturn
+        INCREMENT_OFFSET
+        jmp     @loop
+
+findDigitOrEOF:
+        ldy     #$00
+@loop:
+        lda     (offset),y
+        beq     clearNReturn
+        jsr     isItANumber
+        bcc     setNReturn
+        INCREMENT_OFFSET
+        jmp     @loop
+
+
+runThroughMap:
+        jsr     findDigitOrEOF
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     trans
+        lda     pulledNumber+1
+        sta     trans+1
+        lda     pulledNumber+2
+        sta     trans+2
+        lda     pulledNumber+3
+        sta     trans+3
+        lda     pulledNumber+4
+        sta     trans+4
+
+        jsr     findDigitOrEOF
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     start
+        lda     pulledNumber+1
+        sta     start+1
+        lda     pulledNumber+2
+        sta     start+2
+        lda     pulledNumber+3
+        sta     start+3
+        lda     pulledNumber+4
+        sta     start+4
+        
+        jsr     findDigitOrEOF
+        jsr     pullOutNumber
+
+        lda     pulledNumber
+        sta     range
+        lda     pulledNumber+1
+        sta     range+1
+        lda     pulledNumber+2
+        sta     range+2
+        lda     pulledNumber+3
+        sta     range+3
+        lda     pulledNumber+4
+        sta     range+4
+        rts
+
+processSeed:
+        jsr     findDigitOrNewline
+        bcc     clearNReturn
+        jsr     pullOutNumber
+        lda     pulledNumber
+        sta     seed
+        lda     pulledNumber+1
+        sta     seed+1
+        lda     pulledNumber+2
+        sta     seed+2
+        lda     pulledNumber+3
+        sta     seed+3
+        lda     pulledNumber+4
+        sta     seed+4
+
+        jsr     stashSeed
+        jsr     mapRestore
+
+        jsr     runThroughMap
+
+        jmp     setCarryAndReturn
+
+
+
+mapRestore:
+        lda     mapsStart
+        sta     offset
+        lda     mapsStart+1
+        sta     offset+1
+        rts
+
+stashSeed:
+        lda     offset          ; store next position
+        sta     seedStash
+        lda     offset+1
+        sta     seedStash+1
+        rts
 
 seedRestore:
         lda     seedStash
         sta     offset
         lda     seedStash+1
-        sta     offset
+        sta     offset+1
         rts
 
 loopInit:
@@ -646,10 +764,9 @@ loop:
         ldy     #$00
         lda     (offset),y
 @loop:
-        jsr     findColonOrEOF
+        jsr     seedRestore
+        jsr     processSeed
         bcc     endOfLoop
-        inc     total
-@incrementAndJump:
         INCREMENT_OFFSET
         jmp     loop
 
@@ -657,30 +774,21 @@ somethingWrong:
         inc     errorFlag
 
 endOfLoop:
-        lda     pulledNumber
+        inc     found
+
+        lda     total
         sta     decBuffer
-        lda     pulledNumber+1
+        lda     total+1
         sta     decBuffer+1
-        lda     pulledNumber+2
+        lda     total+2
         sta     decBuffer+2
-        lda     pulledNumber+3
+        lda     total+3
         sta     decBuffer+3
-        lda     pulledNumber+4
+        lda     total+4
         sta     decBuffer+4
+
         ldx     #result1DecimalOut
         jsr     convert4BytesToDecimal
-
-        ; test 1234567890
-        ; lda     #$d2
-        ; sta     decBuffer
-        ; lda     #$02
-        ; sta     decBuffer+1
-        ; lda     #$96
-        ; sta     decBuffer+2
-        ; lda     #$49
-        ; sta     decBuffer+3
-
-        inc     found
 
         lda     total2
         sta     decBuffer
@@ -690,6 +798,8 @@ endOfLoop:
         sta     decBuffer+2
         lda     total2+3
         sta     decBuffer+3
+        lda     total2+4
+        sta     decBuffer+4
 
         ldx     #result2DecimalOut
         jsr     convert4BytesToDecimal
