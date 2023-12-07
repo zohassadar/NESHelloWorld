@@ -1,7 +1,6 @@
 ; These are handy
 
-
-.macro subtract length, this, that, store
+.macro sub length, this, that, store
 ; subtracts this from that and optionally stores
         sec
 .repeat length,pointer

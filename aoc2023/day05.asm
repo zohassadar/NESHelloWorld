@@ -791,7 +791,7 @@ runThroughMap2:
 
 @startPlusRangeGreaterThanSeed:
 ; end = stop if stop < xlate_stop else xlate_stop
-        subtract 5, xlate_stop, stop
+        sub     5, xlate_stop, stop
         bcc     @setEndToStop
 
 ;       set end to xlate_stop
@@ -803,10 +803,10 @@ runThroughMap2:
 @endSet:
 
 ; set bump
-        subtract 5, start, seed, bump
+        sub     5, start, seed, bump
 
 ; set new_span
-        subtract 5, seed, end_, new_span
+        sub     5, seed, end_, new_span
 
         jsr     pushOffsetNewSeedAndStop
         
@@ -858,7 +858,7 @@ runThroughMap:
         beq     @storeSeedAnyway
 
 @notZero:
-        subtract 5, total, seed
+        sub     5, total, seed
         bcs     @ret  ; return if seed is bigger
 
 @storeSeedAnyway:
@@ -1037,7 +1037,7 @@ pullMapNumbers:
         rts
 
 subtractStartFromSeedAndSaveToBump:
-        subtract 5, start, seed, bump
+        sub     5, start, seed, bump
         rts
 
 addStartToRangeAndSaveToXlateStop:
@@ -1046,7 +1046,7 @@ addStartToRangeAndSaveToXlateStop:
 
 
 subtractXlateStopFromSeed:
-        subtract 5, xlate_stop, seed
+        sub     5, xlate_stop, seed
         rts
 
 ; NMI Functions
