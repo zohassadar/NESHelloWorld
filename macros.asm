@@ -34,6 +34,16 @@
 .endrepeat
 .endmacro
 
+.macro compare length, this, that
+; Compares this to that
+.repeat length, pointer
+        lda this+pointer
+        cmp that+pointer
+        bne :+
+.endrepeat
+:
+.endmacro
+
 .macro isZero length, address
 ; zero reflects length bytes
 .repeat length, pointer
