@@ -727,8 +727,133 @@ clearNReturn2:
         clc
         rts
 
-runThroughMap2:
+findNextNumberGroupOrEnd:
+        ldx     maps_index
+        inx
+        lda     maps_hi,x
+        cmp     #$FF
+        beq     @nextGroup
+        cmp     #$FE
+        beq     @end
+        stx     maps_index
         rts
+@nextGroup:
+        inx
+        stx     maps_index
+        rts
+@end:
+        rts
+
+findGroupOrEnd:
+        ldx     maps_index
+@loop:
+        inx
+        lda     maps_hi,x
+        cmp     #$FF
+        beq     @nextGroup
+        cmp     #$FE
+        beq     @end
+        jmp     @loop
+@nextGroup:
+        inx
+        stx     maps_index
+        rts
+@end:
+        rts
+
+
+runThroughMap2:
+        ; expected to be called with:
+        ; maps_index set to valid position
+        ; seed set
+        ; stop set
+        lda     maps_index
+        sta     maps_hi_ptr
+        sta     maps_lo_ptr
+        jsr     setOffsetFromMaps
+        jsr     pullOutNumber
+        copy    5,pulledNumber,trans
+        INCREMENT_OFFSET
+        jsr     pullOutNumber
+        copy    5,pulledNumber,start
+        INCREMENT_OFFSET
+        jsr     pullOutNumber
+        add     5,pulledNumber,start,xlate_stop
+
+;     if not (seed >= start and seed < xlate_stop):
+;         continue
+        sub     5,start,seed,bump ; bump = seed - start
+        bcs     @nextCompare
+        jmp     @processNextMapset
+@nextCompare:
+        sub     5,xlate_stop,seed
+        bcc     @interesting
+        jmp     @processNextMapset
+
+@interesting:
+
+        ;interesting:
+
+; end = stop if stop < xlate_stop else xlate_stop
+        sub     5,xlate_stop,stop
+        bcs     @endIsXlateStop
+        copy    5,stop,end_
+        jmp     @pastEndSet   
+@endIsXlateStop:
+        copy    5,xlate_stop,end_
+@pastEndSet:
+
+        sub     5,seed,end_,new_span ; new_span = end_ - seed
+
+        add     5,trans,bump,xlated_start ;xlated_start = trans + bump
+
+        add     5,trans,bump,xlated_end
+        add     5,xlated_end,new_span,xlated_end    ;xlated_end = trans + bump + new_span
+
+        lda     maps_index  ; push incase it's needed
+        pha
+        jsr     findGroupOrEnd
+        cmp     #$FE
+        bne     @recurse
+        jmp     @endOfGroupsInner
+@recurse:
+        ; recurse!!!
+        push    5,end_ ; will pull into seed after recursion
+        push    5,stop 
+        copy    5,xlated_start,seed
+        copy    5,xlated_end,stop
+        jsr     runThroughMap2
+        pull    5,stop
+        pull    5,seed
+        pla
+        sta     maps_index
+
+        compare 5,stop,seed
+        bne @processNextMapset
+        rts
+
+@endOfGroupsInner:
+        pla ; throw away maps_index.  No longer needed
+@endProcessing:
+        isZero 5,xlated_start
+        beq @ret
+        isZero 5,total2
+        beq @copyAnyway
+        sub  5,total2,xlated_start
+        bcs  @ret
+@copyAnyway:
+        copy 5,xlated_start,total2
+@ret:
+        rts
+
+@processNextMapset:
+        jsr     findNextNumberGroupOrEnd
+        cmp     #$FE
+        beq     @endOfGroupsOuter
+        jmp     runThroughMap2 ; this is the fall through.  offset points to next and seed passes through
+@endOfGroupsOuter:
+     copy 5,seed,xlated_start
+     jmp @endProcessing
 
 findAnchoredDigitColonOrEOF:
         ldy #$00
@@ -938,7 +1063,7 @@ processSeedRange:
 
 ; end, skip saving and add to start
         jsr     pullOutNumber
-        add     5, pulledNumber, seed_range, stop
+        add     5, pulledNumber, seed, stop
 
         jsr     stashSeed
         jsr     part2MapRestore
@@ -947,9 +1072,12 @@ processSeedRange:
         jmp     setCarryAndReturn
 
 part2MapRestore:
+; i didn't think this through
         lda     #$00
         sta     maps_hi_ptr
         sta     maps_lo_ptr
+        sta     maps_index
+        sta     maps_group_start
         rts
 
 
