@@ -23,6 +23,7 @@ seedStash: .res 2
 mapsStart: .res 2
 
 seed:   .res    5
+span: .res 5
 seed_range: .res 5
 
 swap_count: .res 1
@@ -72,7 +73,7 @@ digit4Loc: .res 2
 generalCounter: .res 1
 
 
-.res    $50
+.res    $40
 
 .bss
 stack:
@@ -810,15 +811,17 @@ runThroughMap2:
         add     5,trans,bump,xlated_end
         add     5,xlated_end,new_span,xlated_end    ;xlated_end = trans + bump + new_span
 
+        copy    5,end_,seed
+
         lda     maps_index  ; push incase it's needed
         pha
         jsr     findGroupOrEnd
         cmp     #$FE
         bne     @recurse
-        jmp     @endOfGroupsInner
+        jmp     @checkIfToSave
 @recurse:
         ; recurse!!!
-        push    5,end_ ; will pull into seed after recursion
+        push    5,seed
         push    5,stop 
         copy    5,xlated_start,seed
         copy    5,xlated_end,stop
@@ -832,28 +835,32 @@ runThroughMap2:
         bne @processNextMapset
         rts
 
-@endOfGroupsInner:
-        pla ; throw away maps_index.  No longer needed
-@endProcessing:
-        isZero 5,xlated_start
-        beq @ret
-        isZero 5,total2
-        beq @copyAnyway
-        sub  5,total2,xlated_start
-        bcs  @ret
+@checkIfToSave:
+        pla
+        sta     maps_index
+        isZero  5,xlated_start
+        beq     @processNextMapset
+        isZero  5,total2
+        beq     @copyAnyway
+        sub     5,total2,xlated_start
+        bcs     @processNextMapset
 @copyAnyway:
-        copy 5,xlated_start,total2
-@ret:
-        rts
-
+        copy    5,xlated_start,total2
 @processNextMapset:
         jsr     findNextNumberGroupOrEnd
         cmp     #$FE
         beq     @endOfGroupsOuter
         jmp     runThroughMap2 ; this is the fall through.  offset points to next and seed passes through
 @endOfGroupsOuter:
-     copy 5,seed,xlated_start
-     jmp @endProcessing
+        isZero  5,seed
+        beq     @ret
+        isZero  5,total2
+        beq     @copyAnyway2
+        sub     5,total2,seed
+        bcs     @ret
+@copyAnyway2:
+        copy    5,seed,total2
+@ret:   rts
 
 findAnchoredDigitColonOrEOF:
         ldy #$00
