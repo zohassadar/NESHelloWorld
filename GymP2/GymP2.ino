@@ -11,66 +11,95 @@
 #define LEFT 10
 #define RIGHT 11
 
-#define LATCH 2   //  aka OUT
+#define LATCH 2 //  aka OUT
 #define CLOCK 3
 
-volatile byte data[256];
-volatile byte ptr;
+#define IN_BITS 40
+#define OUT_BYTES 4
 
+volatile byte bitBuffer[IN_BITS];
+volatile byte bitPtr;
+
+volatile byte outBuffer[OUT_BYTES];
+volatile byte outPtr;
+
+const byte BUTTONS[8] = {
+    RIGHT, LEFT, DOWN, UP, START, SELECT, B, A,
+
+};
+
+void reset() {
+  bitPtr = 0;
+  outPtr = 0;
+  for (int i = 0; i < IN_BITS; i++) {
+    bitBuffer[i] = 0;
+  }
+  for (int i = 0; i < OUT_BYTES; i++) {
+    outBuffer[i] = 0;
+  }
+}
+
+void setControllerOutput(byte output) {
+  byte out = output ^ 0xFF;
+  for (int i = 0; i < 8; i++) {
+    digitalWrite(BUTTONS[i], out & 1);
+    out = out >> 1;
+  }
+}
 
 void setup() {
-    // for (int i = 0; i < 256; i++) {
-    //   data[i] = 0;
-    //   }
-    Serial.begin(9600);
+  reset();
+  setControllerOutput(0);
 
-    // pinMode(RIGHT, OUTPUT);
-    // pinMode(LEFT, OUTPUT);
-    // pinMode(UP, OUTPUT);
-    // pinMode(DOWN, OUTPUT);
-    // pinMode(SELECT, OUTPUT);
-    // pinMode(START, OUTPUT);
-    // pinMode(A, OUTPUT);
-    // pinMode(B, OUTPUT);
-    pinMode(LATCH, INPUT);
-    pinMode(CLOCK, INPUT);
+  Serial.begin(9600);
 
-    attachInterrupt(digitalPinToInterrupt(CLOCK),read_latch, FALLING);
-    //
-    // digitalWrite(LEFT, 1);
-    // digitalWrite(RIGHT, 1);
-    // digitalWrite(UP, 1);
-    // digitalWrite(DOWN, 1);
-    // digitalWrite(START, 1);
-    // digitalWrite(SELECT, 1);
-    // digitalWrite(A, 1);
-    // digitalWrite(B, 1);
-    //
-    while (!Serial); // wait for Serial connection (arduino leonardo)
+  pinMode(RIGHT, OUTPUT);
+  pinMode(LEFT, OUTPUT);
+  pinMode(UP, OUTPUT);
+  pinMode(DOWN, OUTPUT);
+  pinMode(SELECT, OUTPUT);
+  pinMode(START, OUTPUT);
+  pinMode(A, OUTPUT);
+  pinMode(B, OUTPUT);
+
+  pinMode(LATCH, INPUT);
+  pinMode(CLOCK, INPUT);
+  while (!Serial)
+    ;
 }
 
-void read_latch() {
-    data[ptr] = digitalRead(LATCH);
-      ptr++;
+void advanceStep() {
+  setControllerOutput(outBuffer[outPtr]);
+  outPtr++;
 }
 
+void readSingleBit() {
+  bitBuffer[bitPtr] = digitalRead(LATCH);
+  bitPtr++;
+}
 
 void loop() {
-    // long sum = 0;
-    // for (int i = 1; i < 256; i++){
-    //   sum = sum + (data[(ptr+i)%256] - data[(ptr+(i-1))%256]);
-    // }
-    for (int i = 0; i < 32; i++){
-      byte value = 0;
-      for (int j = 0; j < 8; j++){
-        value |= data[i * 8 + j] << j;
-      }
-      if (value < 0x10) Serial.print("0");
-      Serial.print(value, HEX);
-      if (i < 31) Serial.print(" ");
-
+  reset();
+  attachInterrupt(digitalPinToInterrupt(LATCH), advanceStep, RISING);
+  while (outPtr < OUT_BYTES)
+    ;
+  detachInterrupt(digitalPinToInterrupt(LATCH));
+  attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
+  while (bitPtr < IN_BITS)
+    ;
+  detachInterrupt(digitalPinToInterrupt(CLOCK));
+  for (int i = 0; i < (IN_BITS / 8); i++) {
+    byte value = 0;
+    for (int j = 0; j < 8; j++) {
+      value |= bitBuffer[i * 8 + j] << j;
     }
-    Serial.println();
-    delay(1000);
-    // Serial.println(String(clocks));
+    Serial.print(value >> 4, HEX);
+    Serial.print(value & 0xF, HEX);
+    if (i < (IN_BITS / 8))
+      Serial.print(" ");
+  }
+  Serial.println(String(outPtr));
+  Serial.println(String(bitPtr));
+
+  // read bytes into the bit buffer here
 }

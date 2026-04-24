@@ -54,11 +54,16 @@ repeatsLoLo: .res 1
 
 readBuffer: .res $10
 generalCounter: .res $1
-.res    $C9
+buttonBuffer: .res $4
+outBuffer: .res $5
+.res    $C0
 
 .bss
 stack:
     .res    $100
+
+
+.assert stack = $100, error, "stack doesn't line up"
 
 unused:
     .res    $100

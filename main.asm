@@ -333,10 +333,7 @@ nmi:    pha
         sta     PPUCTRL
         lda     #%00001110
         sta     PPUMASK
-        lda     frameCounter
-        jsr     transmitByte
-        lda     frameCounter+1
-        jsr     transmitByte
+        jsr     readWriteControllers
         pla
         tay
         pla
@@ -362,7 +359,6 @@ renderBranchOnIndex:
 
 
 renderMainMenu:
-
 ; ram test
         lda     #$20
         sta     PPUADDR
@@ -755,32 +751,57 @@ transmitByte:
         bne @nextBit
         rts
 
-; from https://www.nesdev.org/wiki/Controller_reading_code
-; At the same time that we strobe bit 0, we initialize the ring counter
-; so we're hitting two birds with one stone here
-readjoy:
-        lda     #$01
-        ; While the strobe bit is set, buttons will be continuously reloaded.
-        ; This means that reading from JOYPAD1 will only return the state of the
-        ; first button: button A.
-        sta     JOYPAD1
-        sta     newButtons
-        lsr     a               ; now A is 0
-        ; By storing 0 into JOYPAD1, the strobe bit is cleared and the reloading stops.
-        ; This allows all 8 buttons (newly reloaded) to be read from JOYPAD1.
-        sta     JOYPAD1
-@loop:
-        lda     JOYPAD1
-        lsr     a               ; bit 0 -> Carry
-        rol     newButtons      ; Carry -> bit 0; bit 7 -> Carry
-        bcc     @loop
-        lda     newButtons
+
+readWriteControllers:
+        jsr @read
+        lda frameCounter
+        jsr transmitByte
+        lda frameCounter+1
+        jsr transmitByte
+        lda heldButtons
+        jsr transmitByte
+        lda #$AA
+        jsr transmitByte
+        lda #$55
+        jmp transmitByte
+
+
+@read:
+@button := tmp1
+        ldx #0
+        jsr @readController
+        sta newButtons
+        inx
+        ldy #3
+@p2read:
+        jsr @readController
+        sta buttonBuffer,y
+        dey
+        bpl @p2read
+
+; only matters for p1 input
+        lda newButtons
         pha
-        eor     heldButtons
-        and     newButtons
-        sta     newButtons
+        eor heldButtons
+        and newButtons
+        sta newButtons
         pla
-        sta     heldButtons
+        sta heldButtons
+        rts
+
+; https://www.nesdev.org/wiki/Controller_reading_code
+@readController:
+        lda #$01
+        sta JOYPAD1
+        sta @button
+        lsr
+        sta JOYPAD1
+@loop:
+        lda JOYPAD1,x
+        lsr
+        rol @button
+        bcc @loop
+        lda @button
         rts
 
 
