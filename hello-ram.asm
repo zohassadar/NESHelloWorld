@@ -8,7 +8,7 @@ newButtons: .res 1              ; $0005
 heldButtons: .res 1             ; $0006
 
 nmiHappened: .res 1
-renderMode: .res 1 
+renderMode: .res 1
 
 activeMenu: .res 1
 menuRow: .res 1
@@ -53,8 +53,8 @@ repeatsLoLo: .res 1
 
 
 readBuffer: .res $10
-
-.res    $CA
+generalCounter: .res $1
+.res    $C9
 
 .bss
 stack:

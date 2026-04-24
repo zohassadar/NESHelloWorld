@@ -319,6 +319,9 @@ nmi:    pha
         tya
         pha
         inc     frameCounter
+        bne     @noHi
+        inc     frameCounter+1
+@noHi:
         lda     #$01
         sta     nmiHappened
         lda     renderMode
@@ -330,7 +333,10 @@ nmi:    pha
         sta     PPUCTRL
         lda     #%00001110
         sta     PPUMASK
-        jsr     readjoy
+        lda     frameCounter
+        jsr     transmitByte
+        lda     frameCounter+1
+        jsr     transmitByte
         pla
         tay
         pla
@@ -736,7 +742,18 @@ stringCountQueue:
 stringCounter:
         .byte   " $",$00
 
-
+transmitByte:
+        sta     generalCounter
+        ldy #8
+@nextBit:
+        ror     generalCounter
+        rol     JOYPAD1 ; bit 0 is held on OUT/LATCH (Pin 9)
+        lda     JOY2_APUFC ; causes CLOCK to pulse low
+        nop
+        nop
+        dey
+        bne @nextBit
+        rts
 
 ; from https://www.nesdev.org/wiki/Controller_reading_code
 ; At the same time that we strobe bit 0, we initialize the ring counter
