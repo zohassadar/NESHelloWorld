@@ -397,6 +397,18 @@ renderMainMenu:
         lda     #$F0
         sta     PPUDATA
 
+        lda     #$22
+        sta     PPUADDR
+        lda     #$E1
+        sta     PPUADDR
+        lda     buttonBuffer+0
+        jsr     twoDigitsToPPU
+        lda     buttonBuffer+1
+        jsr     twoDigitsToPPU
+        lda     buttonBuffer+2
+        jsr     twoDigitsToPPU
+        lda     buttonBuffer+3
+        jsr     twoDigitsToPPU
         rts
 
 
@@ -749,21 +761,29 @@ transmitByte:
         nop
         dey
         bne @nextBit
+        lda #0
+        sta JOYPAD1
         rts
 
 
 readWriteControllers:
         jsr @read
-        lda frameCounter
+        lda #$1
+        stx JOYPAD1
+        dex
+        stx JOYPAD1
+        lda #$F0
         jsr transmitByte
-        lda frameCounter+1
-        jsr transmitByte
-        lda heldButtons
-        jsr transmitByte
-        lda #$AA
-        jsr transmitByte
-        lda #$55
-        jmp transmitByte
+        ; lda #$F0
+        ; jsr transmitByte
+        ; lda #$F0
+        ; jsr transmitByte
+        ; lda #$F0
+        ; jsr transmitByte
+        ; lda #$F0
+        ; jmp transmitByte
+@ret:
+        rts
 
 
 @read:
@@ -772,13 +792,19 @@ readWriteControllers:
         jsr @readController
         sta newButtons
         inx
-        ldy #3
-@p2read:
         jsr @readController
-        sta buttonBuffer,y
-        dey
-        bpl @p2read
+        cmp #$EF ; wait until arduino is present
+        bne @setNew
+@keepReading:
+        sta buttonBuffer+0
+        jsr @readController
+        sta buttonBuffer+1
+        jsr @readController
+        sta buttonBuffer+2
+        jsr @readController
+        sta buttonBuffer+3
 
+@setNew:
 ; only matters for p1 input
         lda newButtons
         pha
@@ -787,6 +813,7 @@ readWriteControllers:
         sta newButtons
         pla
         sta heldButtons
+@wait:
         rts
 
 ; https://www.nesdev.org/wiki/Controller_reading_code
@@ -814,6 +841,7 @@ reset:
         ldx     #$ff
         txs                     ; Set up stack
         inx                     ; now X = 0
+        stx     JOYPAD1
         stx     PPUCTRL         ; disable NMI
         stx     PPUMASK         ; disable rendering
         stx     DMC_FREQ        ; disable DMC IRQs

@@ -14,7 +14,7 @@
 #define LATCH 2 //  aka OUT
 #define CLOCK 3
 
-#define IN_BITS 40
+#define IN_BITS 8
 #define OUT_BYTES 4
 
 volatile byte bitBuffer[IN_BITS];
@@ -29,13 +29,16 @@ const byte BUTTONS[8] = {
 };
 
 void reset() {
+  setControllerOutput(1);
   bitPtr = 0;
   outPtr = 0;
   for (int i = 0; i < IN_BITS; i++) {
     bitBuffer[i] = 0;
   }
+  byte tmp = 0xEF;
   for (int i = 0; i < OUT_BYTES; i++) {
-    outBuffer[i] = 0;
+    outBuffer[i] = tmp;
+    tmp++;
   }
 }
 
@@ -49,7 +52,6 @@ void setControllerOutput(byte output) {
 
 void setup() {
   reset();
-  setControllerOutput(0);
 
   Serial.begin(9600);
 
@@ -68,8 +70,10 @@ void setup() {
     ;
 }
 
-void advanceStep() {
-  setControllerOutput(outBuffer[outPtr]);
+void latchPulse() {
+  if (outPtr < OUT_BYTES) {
+    setControllerOutput(outBuffer[outPtr]);
+  }
   outPtr++;
 }
 
@@ -80,15 +84,15 @@ void readSingleBit() {
 
 void loop() {
   reset();
-  attachInterrupt(digitalPinToInterrupt(LATCH), advanceStep, RISING);
-  while (outPtr < OUT_BYTES)
+  attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, FALLING);
+  while (outPtr < OUT_BYTES + 2) // + 1 for p1 controller.  +1 to signal done reading
     ;
   detachInterrupt(digitalPinToInterrupt(LATCH));
   attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
   while (bitPtr < IN_BITS)
     ;
   detachInterrupt(digitalPinToInterrupt(CLOCK));
-  for (int i = 0; i < (IN_BITS / 8); i++) {
+  for (int i = 0; i < 1; i++) {
     byte value = 0;
     for (int j = 0; j < 8; j++) {
       value |= bitBuffer[i * 8 + j] << j;
@@ -98,8 +102,10 @@ void loop() {
     if (i < (IN_BITS / 8))
       Serial.print(" ");
   }
-  Serial.println(String(outPtr));
-  Serial.println(String(bitPtr));
-
+  Serial.println();
+  delay(5);
+  // Serial.println(String(outPtr));
+  // Serial.println(String(bitPtr));
+  //
   // read bytes into the bit buffer here
 }
