@@ -36,6 +36,19 @@ readWriteControllers:
         sta JOYPAD1
         ; signal ready to read controllers
         lda JOY2_APUFC
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @ret
+        jsr @read
         rts
 @ret:
         rts
@@ -46,18 +59,28 @@ readWriteControllers:
         ldx #0
         jsr @readController
         sta newButtons
-        inx
+        nop
+        nop
+        nop
         jsr @readController
-        cmp #$EF ; wait until arduino is present
-        bne @setNew
-@keepReading:
-        sta buttonBuffer+0
-        jsr @readController
-        sta buttonBuffer+1
-        jsr @readController
-        sta buttonBuffer+2
-        jsr @readController
-        sta buttonBuffer+3
+        sta buttonBuffer
+        ldx #1
+        stx JOYPAD1
+        dex
+        stx JOYPAD1
+
+;         inx
+;         jsr @readController
+;         cmp #$EF ; wait until arduino is present
+;         bne @setNew
+; @keepReading:
+;         sta buttonBuffer+0
+;         jsr @readController
+        ; sta buttonBuffer+1
+        ; jsr @readController
+        ; sta buttonBuffer+2
+        ; jsr @readController
+        ; sta buttonBuffer+3
 
 @setNew:
 ; only matters for p1 input

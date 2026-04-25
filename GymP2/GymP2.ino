@@ -26,6 +26,7 @@ volatile byte outPtr;
 volatile byte startSend;
 volatile byte startRead;
 volatile byte syncPtr;
+volatile bool sending;
 
 const byte BUTTONS[8] = {
     RIGHT, LEFT, DOWN, UP, START, SELECT, B, A,
@@ -91,26 +92,16 @@ void setup() {
 void latchPulse() {
   switch (outPtr) {
   case 0: // p1 read
-    setControllerOutput(outBuffer[outPtr]);
     outPtr++;
     break;
-  case 1: // p2 read 1
-    setControllerOutput(outBuffer[outPtr]);
+  case 1:
     outPtr++;
     break;
-  case 2: // p2 read 2
-    setControllerOutput(outBuffer[outPtr]);
+  case 2:
     outPtr++;
     break;
-  case 3: // p2 read 3
-    setControllerOutput(outBuffer[outPtr]);
-    outPtr++;
-    break;
-  case 4: // p2 read 4
-    outPtr++;
-    break;
-  case 5: // p2 read finished
-    startSend = 1;
+  case 3:
+    sending = false;
     break;
   }
 }
@@ -153,7 +144,13 @@ void loop() {
     ;
   while (!startSend)
     ;
-    detachInterrupt(digitalPinToInterrupt(CLOCK));
+  detachInterrupt(digitalPinToInterrupt(CLOCK));
+  sending = 1;
+  attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
+  while (sending)
+    ;
+  detachInterrupt(digitalPinToInterrupt(LATCH));
+  delay(3);
   long mils = millis();
   long diff = mils - lastMillis;
   lastMillis = mils;
@@ -172,6 +169,8 @@ void loop() {
   Serial.print(value & 0xF, HEX);
   Serial.print(" ");
   Serial.print(diff);
+  Serial.print(" ");
+  Serial.print(digitalRead(LATCH));
   Serial.print(" ");
   if (ok) {
     Serial.println(" ok");
