@@ -32,43 +32,14 @@ readWriteControllers:
         dex
         stx JOYPAD1
         jsr sendPreamble
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
         lda frameCounter
         jsr transmitByte
+        ; all bits should be transmited, arduino is waiting on last pulse
+        ; restore 4016 to normal unused state
+        lda #$00
+        sta JOYPAD1
+        ; signal ready to read controllers
         lda JOY2_APUFC
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
         rts
 @ret:
         rts

@@ -153,19 +153,23 @@ void loop() {
   while (!startSend)
     ;
     detachInterrupt(digitalPinToInterrupt(CLOCK));
+  long mils = millis();
+  long diff = mils - lastMillis;
+  lastMillis = mils;
+
   byte value = 0;
   for (int i = 0; i < 8; i++) {
     Serial.print(bitBuffer[i]);
     value |= bitBuffer[i] << i;
   }
+
+
   Serial.print(" ");
   Serial.print(value >> 4, HEX);
   Serial.print(value & 0xF, HEX);
   Serial.print(" ");
-  long mils = millis();
-  Serial.print(mils - lastMillis);
+  Serial.print(diff);
   Serial.print(" ");
-  lastMillis = mils;
   Serial.println(" ok!");
   // attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
   // while (!startSend)
