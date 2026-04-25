@@ -32,6 +32,8 @@ const byte BUTTONS[8] = {
 
 };
 
+long lastMillis = 0;
+
 volatile byte syncBuffer[32];
 const byte SYNCDATA[32] = {0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0,
                            0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1};
@@ -68,7 +70,7 @@ void setControllerOutput(byte output) {
 void setup() {
   reset();
 
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   pinMode(RIGHT, OUTPUT);
   pinMode(LEFT, OUTPUT);
@@ -112,31 +114,59 @@ void latchPulse() {
   }
 }
 
-void readSingleBit() {
-  bitBuffer[bitPtr] = digitalRead(LATCH);
-  bitPtr++;
-}
+// void readSingleBit() {
+//   bitBuffer[bitPtr] = digitalRead(LATCH);
+//   bitPtr++;
+// }
 
-void readPreamble() {
-  syncBuffer[syncPtr] = digitalRead(LATCH);
-  if (syncBuffer[syncPtr] != SYNCDATA[syncPtr]) {
-    // reset sequence
-    syncPtr = 0;
-    return;
+void readSingleBit() {
+  switch (startRead) {
+  case 0:
+    syncBuffer[syncPtr] = digitalRead(LATCH);
+    if (syncBuffer[syncPtr] != SYNCDATA[syncPtr]) {
+      // reset sequence
+      syncPtr = 0;
+      return;
+    }
+    syncPtr++;
+    if (syncPtr < 32)
+      return;
+    startRead = 1;
+    break;
+  case 1:
+    bitBuffer[bitPtr] = digitalRead(LATCH);
+    bitPtr++;
+    if (bitPtr < 8)
+      return;
+    startRead = 2;
+    break;
+  case 2:
+    startSend = 1;
   }
-  syncPtr++;
-  if (syncPtr < 32)
-    return;
-  startRead = 1;
 }
 
 void loop() {
   reset();
-  attachInterrupt(digitalPinToInterrupt(CLOCK), readPreamble, FALLING);
-  while (!startRead)
+  attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
+  while (!digitalRead(LATCH))
     ;
-  detachInterrupt(digitalPinToInterrupt(CLOCK));
-  Serial.println("ok!");
+  while (!startSend)
+    ;
+    detachInterrupt(digitalPinToInterrupt(CLOCK));
+  byte value = 0;
+  for (int i = 0; i < 8; i++) {
+    Serial.print(bitBuffer[i]);
+    value |= bitBuffer[i] << i;
+  }
+  Serial.print(" ");
+  Serial.print(value >> 4, HEX);
+  Serial.print(value & 0xF, HEX);
+  Serial.print(" ");
+  long mils = millis();
+  Serial.print(mils - lastMillis);
+  Serial.print(" ");
+  lastMillis = mils;
+  Serial.println(" ok!");
   // attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
   // while (!startSend)
   //   ;

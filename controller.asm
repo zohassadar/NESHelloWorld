@@ -1,14 +1,8 @@
 syncData:
+        ; source: ','.join(random.choice("01") for _ in range(32))
         .byte 0,0,0,0,1,0,1,1,1,1,0,0,1,1,1,0,0,0,1,1,0,0,1,1,0,0,0,1,0,1,0,1
 syncDataEnd:
 syncDataLength = syncDataEnd - syncData
-
-pulseLatch:
-        ldx #$1
-        stx JOYPAD1
-        dex
-        stx JOYPAD1
-        rts
 
 sendPreamble:
         ldx #0
@@ -16,6 +10,7 @@ sendPreamble:
         lda syncData,x
         sta JOYPAD1
         lda JOY2_APUFC
+        ; time is needed for the arduino interrupt routine to finish
         nop
         nop
         nop
@@ -32,23 +27,49 @@ sendPreamble:
 
 
 readWriteControllers:
-        jsr sendPreamble
-        rts
-
-        jsr @read
-        lda #$F0
-        jsr transmitByte
-        ; lda #$F0
-        ; jsr transmitByte
-        ; lda #$F0
-        ; jsr transmitByte
-        ; lda #$F0
-        ; jsr transmitByte
-        ; lda #$F0
-        ; jmp transmitByte
+        ldx #1
         stx JOYPAD1
         dex
         stx JOYPAD1
+        jsr sendPreamble
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        lda frameCounter
+        jsr transmitByte
+        lda JOY2_APUFC
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        rts
 @ret:
         rts
 
@@ -107,6 +128,25 @@ transmitByte:
         ror     generalCounter
         rol     JOYPAD1 ; bit 0 is held on OUT/LATCH (Pin 9)
         lda     JOY2_APUFC ; causes CLOCK to pulse low
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
         nop
         nop
         dey
