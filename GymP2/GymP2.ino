@@ -112,6 +112,7 @@ void latchPulse() {
 // }
 
 void readSingleBit() {
+  if (sending) return;
   switch (startRead) {
   case 0:
     syncBuffer[syncPtr] = digitalRead(LATCH);
@@ -138,6 +139,7 @@ void readSingleBit() {
 }
 
 void loop() {
+  sending = 0;
   reset();
   attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
   while (!digitalRead(LATCH))
@@ -145,8 +147,8 @@ void loop() {
   while (!startSend)
     ;
   detachInterrupt(digitalPinToInterrupt(CLOCK));
-  sending = 1;
   attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
+  sending = 1;
   while (sending)
     ;
   detachInterrupt(digitalPinToInterrupt(LATCH));
