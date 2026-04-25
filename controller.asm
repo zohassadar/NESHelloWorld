@@ -11,17 +11,13 @@ sendPreamble:
         sta JOYPAD1
         lda JOY2_APUFC
         ; time is needed for the arduino interrupt routine to finish
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
+        jsr @ret
+        jsr @ret
+        jsr @ret
         inx
         cpx #syncDataLength
         bne @sendBit
+@ret:
         rts
 
 
@@ -99,19 +95,6 @@ transmitByte:
         ror     generalCounter
         rol     JOYPAD1 ; bit 0 is held on OUT/LATCH (Pin 9)
         lda     JOY2_APUFC ; causes CLOCK to pulse low
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
         nop
         nop
         nop

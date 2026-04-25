@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -e
+killall avrdude 2>/dev/null || true
+killall screen 2>/dev/null || true
 arduino-cli compile --fqbn arduino:avr:mega GymP2
 arduino-cli upload -p /dev/ttyACM1 --fqbn arduino:avr:mega GymP2
 bash build.sh

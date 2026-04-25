@@ -33,6 +33,7 @@ const byte BUTTONS[8] = {
 };
 
 long lastMillis = 0;
+int lastValue = 0;
 
 volatile byte syncBuffer[32];
 const byte SYNCDATA[32] = {0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0,
@@ -159,18 +160,29 @@ void loop() {
 
   byte value = 0;
   for (int i = 0; i < 8; i++) {
-    Serial.print(bitBuffer[i]);
     value |= bitBuffer[i] << i;
   }
+  int compare = lastValue;
+  if (lastValue == 0xFF)
+    compare = -1;
+  bool ok = (value == compare + 1);
+  lastValue = value;
 
-
-  Serial.print(" ");
   Serial.print(value >> 4, HEX);
   Serial.print(value & 0xF, HEX);
   Serial.print(" ");
   Serial.print(diff);
   Serial.print(" ");
-  Serial.println(" ok!");
+  if (ok) {
+    Serial.println(" ok");
+  } else {
+    Serial.print(" bad ");
+    Serial.print(value, HEX);
+    Serial.print(" ");
+    Serial.print(lastValue, HEX);
+    Serial.println();
+  }
+
   // attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
   // while (!startSend)
   //   ;
