@@ -64,6 +64,7 @@ outBuffer: .res $4
 outByte: .res 1
 inByte: .res 1
 
+buttonBuffer: .res $4
 .bss
 stack:
     .res    $100
