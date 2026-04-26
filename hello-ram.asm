@@ -54,10 +54,15 @@ repeatsLoLo: .res 1
 
 readBuffer: .res $10
 generalCounter: .res $1
-buttonBuffer: .res $4
-outBuffer: .res $5
 sleepCounter: .res $1
-.res    $BF
+
+arduinoId: .res $4
+
+inBuffer: .res $4
+outBuffer: .res $4
+
+outByte: .res 1
+inByte: .res 1
 
 .bss
 stack:

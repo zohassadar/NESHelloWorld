@@ -405,13 +405,13 @@ renderMainMenu:
         sta     PPUADDR
         lda     #$E1
         sta     PPUADDR
-        lda     buttonBuffer+0
+        lda     arduinoId+0
         jsr     twoDigitsToPPU
-        lda     buttonBuffer+1
+        lda     arduinoId+1
         jsr     twoDigitsToPPU
-        lda     buttonBuffer+2
+        lda     arduinoId+2
         jsr     twoDigitsToPPU
-        lda     buttonBuffer+3
+        lda     arduinoId+3
         jsr     twoDigitsToPPU
         rts
 

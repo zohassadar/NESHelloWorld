@@ -2,209 +2,102 @@
 #include <Wire.h>
 
 // pins
-#define A 4
-#define B 5
-#define SELECT 6
-#define START 7
-#define UP 8
-#define DOWN 9
-#define LEFT 10
-#define RIGHT 11
+// #define A 4
+// #define B 5
+// #define SELECT 6
+// #define START 7
+// #define UP 8
+// #define DOWN 9
+// #define LEFT 10
+// #define RIGHT 11
 
-#define LATCH 2 //  aka OUT
-#define CLOCK 3
+#define LATCH 2 // OUT
+#define CLOCK 3 // CLK
+#define D0 13   // D0
 
 #define IN_BITS 8
 #define OUT_BYTES 4
 
-volatile byte bitBuffer[IN_BITS];
-volatile byte bitPtr;
+volatile int pulse; // count to 32 initially, then 64
 
-volatile byte outBuffer[OUT_BYTES];
-volatile byte outPtr;
+volatile unsigned long outBuffer;
+volatile unsigned long inBuffer;
 
-volatile byte startSend;
-volatile byte startRead;
-volatile byte syncPtr;
-volatile bool sending;
+const unsigned long EXPECTED = 0xFF00FF00;
 
-const byte BUTTONS[8] = {
-    RIGHT, LEFT, DOWN, UP, START, SELECT, B, A,
+const unsigned long _ID = 0xFEEDFACE;
 
-};
+const unsigned long ARDUINO_ID = ~_ID << 1;
+const unsigned long ARDUINO_ID_START = ~_ID >> 31;
+
+// const byte BUTTONS[8] = {
+//     RIGHT, LEFT, DOWN, UP, START, SELECT, B, A,
+//
+// };
 
 long lastMillis = 0;
 int lastValue = 0;
 
-volatile byte syncBuffer[32];
-const byte SYNCDATA[32] = {0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0,
-                           0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1};
-
 void reset() {
-  startSend = 0;
-  startRead = 0;
-  setControllerOutput(0xEF);
-  bitPtr = 0;
-  outPtr = 0;
-  syncPtr = 0;
-  syncPtr = 0;
-  for (int i = 0; i < IN_BITS; i++) {
-    bitBuffer[i] = 0;
-  }
-  for (int i = 0; i < 32; i++) {
-    syncBuffer[i] = 0;
-  }
-  byte tmp = 0xEF;
-  for (int i = 0; i < OUT_BYTES; i++) {
-    outBuffer[i] = tmp;
-    tmp++;
-  }
-}
-
-void setControllerOutput(byte output) {
-  byte out = output ^ 0xFF;
-  for (int i = 0; i < 8; i++) {
-    digitalWrite(BUTTONS[i], out & 1);
-    out = out >> 1;
-  }
+  digitalWrite(D0, ARDUINO_ID_START);
+  pulse = 31;
+  outBuffer = 0;
+  inBuffer = 0;
 }
 
 void setup() {
   reset();
-
   Serial.begin(115200);
-
-  pinMode(RIGHT, OUTPUT);
-  pinMode(LEFT, OUTPUT);
-  pinMode(UP, OUTPUT);
-  pinMode(DOWN, OUTPUT);
-  pinMode(SELECT, OUTPUT);
-  pinMode(START, OUTPUT);
-  pinMode(A, OUTPUT);
-  pinMode(B, OUTPUT);
 
   pinMode(LATCH, INPUT);
   pinMode(CLOCK, INPUT);
+  pinMode(D0, OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(CLOCK), clockPulse, FALLING);
+
   while (!Serial)
     ;
 }
 
-void latchPulse() {
-  switch (outPtr) {
-  case 0: // p1 read
-    outPtr++;
-    break;
-  case 1:
-    outPtr++;
-    break;
-  case 2:
-    sending = false;
-    outPtr++;
-    break;
-  case 3:
-    break;
+void clockPulse() {
+  // pulse expected 0-63 (31 for intial testing)
+  // byte phase = pulse >> 5; // expected 0-1
+  // byte n = pulse & 0x1F;
+  // switch (phase) {
+  // case 0: // validation
+  //   if (bitRead(EXPECTED, n) != digitalRead(LATCH)) {
+  //     reset();
+  //     return;
+  //   }
+  byte newBit = digitalRead(LATCH);
+  if (bitRead(EXPECTED, pulse) != newBit) {
+    reset();
+    return;
   }
-}
-
-// void readSingleBit() {
-//   bitBuffer[bitPtr] = digitalRead(LATCH);
-//   bitPtr++;
-// }
-
-void readSingleBit() {
-  if (sending) return;
-  switch (startRead) {
-  case 0:
-    syncBuffer[syncPtr] = digitalRead(LATCH);
-    if (syncBuffer[syncPtr] != SYNCDATA[syncPtr]) {
-      // reset sequence
-      syncPtr = 0;
-      return;
-    }
-    syncPtr++;
-    if (syncPtr < 32)
-      return;
-    startRead = 1;
-    break;
-  case 1:
-    bitBuffer[bitPtr] = digitalRead(LATCH);
-    bitPtr++;
-    if (bitPtr < 8)
-      return;
-    startRead = 2;
-    break;
-  case 2:
-    startSend = 1;
-  }
+  bitWrite(inBuffer, pulse, digitalRead(LATCH));
+  digitalWrite(D0, bitRead(ARDUINO_ID, pulse));
+  // case 1: // communication
+  //   break;
+  // }
+  pulse--;
 }
 
 void loop() {
-  sending = 0;
   reset();
-  attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
-  while (!digitalRead(LATCH))
+  while (pulse > 0)
     ;
-  while (!startSend)
-    ;
-  detachInterrupt(digitalPinToInterrupt(CLOCK));
-  attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
-  sending = 1;
-  while (sending)
-    ;
-  detachInterrupt(digitalPinToInterrupt(LATCH));
   delay(3);
   long mils = millis();
   long diff = mils - lastMillis;
   lastMillis = mils;
-
-  byte value = 0;
-  for (int i = 0; i < 8; i++) {
-    value |= bitBuffer[i] << i;
-  }
-  int compare = lastValue;
-  if (lastValue == 0xFF)
-    compare = -1;
-  bool ok = (value == compare + 1);
-  lastValue = value;
-
-  Serial.print(value >> 4, HEX);
-  Serial.print(value & 0xF, HEX);
+  Serial.print(inBuffer >> 28, HEX);
+  Serial.print(inBuffer >> 24 & 0xF, HEX);
+  Serial.print(inBuffer >> 24 & 0xF, HEX);
+  Serial.print(inBuffer >> 20 & 0xF, HEX);
+  Serial.print(inBuffer >> 16 & 0xF, HEX);
+  Serial.print(inBuffer >> 12 & 0xF, HEX);
+  Serial.print(inBuffer >> 8 & 0xF, HEX);
+  Serial.print(inBuffer >> 4 & 0xF, HEX);
+  Serial.print(inBuffer & 0xF, HEX);
   Serial.print(" ");
-  Serial.print(diff);
-  Serial.print(" ");
-  Serial.print(digitalRead(LATCH));
-  Serial.print(" ");
-  if (ok) {
-    Serial.println(" ok");
-  } else {
-    Serial.print(" bad ");
-    Serial.print(value, HEX);
-    Serial.print(" ");
-    Serial.print(lastValue, HEX);
-    Serial.println();
-  }
-
-  // attachInterrupt(digitalPinToInterrupt(LATCH), latchPulse, RISING);
-  // while (!startSend)
-  //   ;
-  // detachInterrupt(digitalPinToInterrupt(LATCH));
-  // attachInterrupt(digitalPinToInterrupt(CLOCK), readSingleBit, FALLING);
-  // while (bitPtr < IN_BITS)
-  //   ;
-  // detachInterrupt(digitalPinToInterrupt(CLOCK));
-  // for (int i = 0; i < 1; i++) {
-  //   byte value = 0;
-  //   for (int j = 0; j < 8; j++) {
-  //     value |= bitBuffer[i * 8 + j] << j;
-  //   }
-  //   Serial.print(value >> 4, HEX);
-  //   Serial.print(value & 0xF, HEX);
-  //   if (i < (IN_BITS / 8))
-  //     Serial.print(" ");
-  // }
-  // Serial.println();
-  // Serial.println(String(outPtr));
-  // Serial.println(String(bitPtr));
-  //
-  // read bytes into the bit buffer here
+  Serial.println(diff);
 }
