@@ -43,7 +43,7 @@ const byte SYNCDATA[32] = {0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0,
 void reset() {
   startSend = 0;
   startRead = 0;
-  setControllerOutput(1);
+  setControllerOutput(0xEF);
   bitPtr = 0;
   outPtr = 0;
   syncPtr = 0;
@@ -98,10 +98,10 @@ void latchPulse() {
     outPtr++;
     break;
   case 2:
+    sending = false;
     outPtr++;
     break;
   case 3:
-    sending = false;
     break;
   }
 }

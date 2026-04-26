@@ -56,12 +56,17 @@ readWriteControllers:
 
 @read:
 @button := tmp1
-        ldx #0
+        lda sleepCounter
+        bne @skipP2
+        ldx #1
         jsr @readController
-        sta newButtons
-        nop
-        nop
-        nop
+        sta buttonBuffer
+        cmp #$EF
+        beq @skipP2
+        lda #40
+        sta sleepCounter
+@skipP2:
+        ldx #$0
         jsr @readController
         sta buttonBuffer
         ldx #1

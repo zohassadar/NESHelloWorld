@@ -56,7 +56,8 @@ readBuffer: .res $10
 generalCounter: .res $1
 buttonBuffer: .res $4
 outBuffer: .res $5
-.res    $C0
+sleepCounter: .res $1
+.res    $BF
 
 .bss
 stack:

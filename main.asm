@@ -333,6 +333,10 @@ nmi:    pha
         sta     PPUCTRL
         lda     #%00001110
         sta     PPUMASK
+        lda     sleepCounter
+        beq     @noDec
+        dec     sleepCounter
+@noDec:
         jsr     readWriteControllers
         pla
         tay
@@ -816,6 +820,10 @@ paletteLoop:
         sta     PPUCTRL
         lda     #%00011110
         sta     PPUMASK
+
+
+        lda    #$FF
+        sta    sleepCounter
         jmp     loop
 
 palette:
