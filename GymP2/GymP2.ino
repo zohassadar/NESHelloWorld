@@ -25,9 +25,9 @@ const byte EXPECTED[16] = {
 volatile byte syncBuffer[16];
 
 const byte ARDUINO_ID[16] = {
-    0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 
-}; // 0xD2 ^ 0xFF << 0 top bit set at init, last bit ignored
+};
 
 const byte ARDUINO_ID_START = 1; // 0xD2 >> 7 ^ 0xFF
 
@@ -55,7 +55,6 @@ void setup() {
 }
 
 void clockPulse() {
-    digitalWrite(D0, ARDUINO_ID[syncPtr]);
   switch (phase) {
   case 0:
     syncBuffer[syncPtr] = digitalRead(LATCH);
@@ -64,6 +63,7 @@ void clockPulse() {
       syncPtr = 0;
       return;
     }
+    digitalWrite(D0, ARDUINO_ID[syncPtr]);
     syncPtr++;
     if (syncPtr < 16)
       return;
@@ -84,7 +84,7 @@ void loop() {
     ;
   while (phase != 1)
     ;
-  delay(5);
+  delay(3);
   long mils = millis();
   long diff = mils - lastMillis;
   lastMillis = mils;

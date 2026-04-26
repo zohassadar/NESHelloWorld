@@ -1,4 +1,8 @@
 readWriteControllers:
+        ldx #1
+        stx JOYPAD1
+        dex
+        stx JOYPAD1
         lda #%01011010
         jsr sendReceiveP2Port
         sta arduinoId+0
@@ -9,42 +13,29 @@ readWriteControllers:
 
         lda #$00
         sta JOYPAD1
-        nop
-
-        ; lda #$AA
-        ; jsr sendReceiveP2Port
-        ; sta arduinoId+1
-        ;
-        ; lda #$AA
-        ; jsr sendReceiveP2Port
-        ; sta arduinoId+2
-        ;
-        ; lda #$AA
-        ; jsr sendReceiveP2Port
-        ; sta arduinoId+3
-        ;
-        ;jsr readP1
+        jsr readP1
 @ret:
         rts
 
 
 sendReceiveP2Port:
         sta outByte
-        lda #1
+        lda #0
         sta inByte
+        ldy #8
 @loop:
         asl outByte           ; next bit in carry
         rol JOYPAD1           ; carry stored in 4016.0
         lda JOY2_APUFC        ; read bit 4017.0 (D0)
                               ; also pulses clock (triggers arduino interrupt)
         lsr
-        rol inByte            ; save bit
+        ror inByte            ; save bit
 
-        .repeat 3             ; 12 cycles per, tune down later
         jsr @ret              ; give arduino time to finish isr
-        .endrepeat
+        jsr @ret              ; give arduino time to finish isr
 
-        bcc @loop
+        dey
+        bne @loop
 
         lda inByte
 @ret:
