@@ -25,11 +25,16 @@ const byte EXPECTED[16] = {
 volatile byte syncBuffer[16];
 
 const byte ARDUINO_ID[16] = {
-    1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    // some sequences don't work
+    1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+    // this one works:
+    //  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1,
+    // doesn't works:
+    //  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1,
 
 };
 
-const byte ARDUINO_ID_START = 1; // 0xD2 >> 7 ^ 0xFF
+const byte ARDUINO_ID_START = 1;
 
 long lastMillis = 0;
 int lastValue = 0;
@@ -60,6 +65,7 @@ void clockPulse() {
     syncBuffer[syncPtr] = digitalRead(LATCH);
     if (syncBuffer[syncPtr] != EXPECTED[syncPtr]) {
       // reset sequence
+      digitalWrite(D0, ARDUINO_ID_START);
       syncPtr = 0;
       return;
     }
